@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter: Test current file",
+      "type": "dart",
+      "request": "launch",
+      "program": "${file}",
+      "args": ["-r", "expanded"]
+    },
+    {
+      "name": "Flutter: Test all",
+      "type": "dart",
+      "request": "launch",
+      "program": "test",
+      "args": ["-r", "expanded"]
+    }
+  ]
+}

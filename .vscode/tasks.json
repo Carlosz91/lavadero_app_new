@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "flutter: test current file",
+      "type": "process",
+      "command": "flutter",
+      "args": ["test", "${file}", "-r", "expanded"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "test"
+    },
+    {
+      "label": "flutter: test all",
+      "type": "process",
+      "command": "flutter",
+      "args": ["test", "-r", "expanded"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "test"
+    }
+  ]
+}
