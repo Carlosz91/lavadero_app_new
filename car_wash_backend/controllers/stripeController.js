@@ -6,6 +6,11 @@ const { ValidationError } = require('../utils/AppError');
 const HOST = process.env.STRIPE_REDIRECT_HOST || 'http://10.0.2.2:5000';
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
+/**
+ * @desc    Crea sesión de pago Stripe. Reutiliza paymentId existente o crea uno nuevo.
+ * @route   POST /api/stripe/create-checkout-session
+ * @access  Private
+ */
 exports.createCheckoutSession = async (req, res, next) => {
   try {
     const { plate, amount, description, carId, paymentId } = req.body;
@@ -72,15 +77,30 @@ exports.createCheckoutSession = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Página HTML de confirmación de pago exitoso
+ * @route   GET /api/stripe/success
+ * @access  Público (redirección Stripe)
+ */
 exports.success = async (req, res) => {
   res.send(`<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f0fdf4;"><div style="text-align:center;"><h1 style="color:#16a34a;">\u2705 Pago exitoso</h1><p>Gracias por tu pago. Ya puedes cerrar esta ventana.</p></div></body></html>`);
 };
 
+/**
+ * @desc    Página HTML de cancelación de pago
+ * @route   GET /api/stripe/cancel
+ * @access  Público (redirección Stripe)
+ */
 exports.cancel = async (req, res) => {
   logger.warn('Pago Stripe cancelado');
   res.send(`<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#fef2f2;"><div style="text-align:center;"><h1 style="color:#dc2626;">\u274c Pago cancelado</h1><p>El pago no se complet\u00f3. Intenta de nuevo.</p></div></body></html>`);
 };
 
+/**
+ * @desc    Webhook de Stripe con verificación de firma. Procesa checkout.session.completed y actualiza pago a Pagado.
+ * @route   POST /api/stripe/webhook
+ * @access  Público (firmado por Stripe)
+ */
 exports.webhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
 

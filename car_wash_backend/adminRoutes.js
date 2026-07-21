@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const verifyToken = require('./middlewares/verifyToken');
 const { requireRole } = require('./middlewares/verifyToken');
+const adminController = require('./controllers/adminController');
 
 /**
  * @swagger
@@ -19,8 +20,6 @@ const { requireRole } = require('./middlewares/verifyToken');
  *       403:
  *         description: Se requiere rol de admin
  */
-router.get('/dashboard', verifyToken, requireRole('admin'), (req, res) => {
-  res.json({ message: 'Dashboard administrativo' });
-});
+router.get('/dashboard', verifyToken, requireRole('admin'), adminController.getDashboard);
 
 module.exports = router;

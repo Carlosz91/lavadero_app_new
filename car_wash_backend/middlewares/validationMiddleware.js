@@ -45,11 +45,13 @@ const validateCarStatusUpdate = [
     .withMessage('Estado inválido'),
 ];
 
+const VALID_METHODS = ['Efectivo', 'Tarjeta', 'Transferencia', 'Mercado Pago', 'Stripe', 'Otro'];
+
 const validatePaymentCreate = [
   body('plate').trim().notEmpty().withMessage('Placa es obligatoria'),
   body('method')
-    .isIn(['Efectivo', 'Tarjeta', 'Transferencia', 'Otro'])
-    .withMessage('Método de pago inválido'),
+    .isIn(VALID_METHODS)
+    .withMessage(`Método de pago inválido. Válidos: ${VALID_METHODS.join(', ')}`),
   body('amount').isFloat({ min: 0.01 }).withMessage('Monto debe ser mayor a 0'),
 ];
 

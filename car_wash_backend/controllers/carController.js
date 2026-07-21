@@ -13,6 +13,11 @@ const VALID_TRANSITIONS = {
   'Cancelado': [],
 };
 
+/**
+ * @desc    Registra un vehículo para lavado. Verifica pagos pendientes, existencia del usuario y capacidad de agendamiento.
+ * @route   POST /api/cars/registercar
+ * @access  Private (user)
+ */
 exports.registerCar = async (req, res, next) => {
   try {
     const { plate, model, brand, washType, amount, scheduledDate, scheduledTime } = req.body;
@@ -21,10 +26,6 @@ exports.registerCar = async (req, res, next) => {
     const pendingPaymentCount = await Payment.countDocuments({ userId, status: 'Pendiente' });
     if (pendingPaymentCount > 0) {
       throw new ValidationError('Tenés un pago pendiente. Pagalo antes de registrar otro vehículo.');
-    }
-
-    if (!VALID_WASH_TYPES.includes(washType)) {
-      throw new ValidationError(`Tipo de lavado inválido. Válidos: ${VALID_WASH_TYPES.join(', ')}`);
     }
 
     const user = await User.findById(userId);
@@ -71,6 +72,11 @@ exports.registerCar = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Obtiene vehículos del usuario con paginación
+ * @route   GET /api/cars/status/:userId
+ * @access  Private (owner or admin)
+ */
 exports.getUserCarsStatus = async (req, res, next) => {
   try {
     const { userId } = req.params;
@@ -111,14 +117,15 @@ exports.getUserCarsStatus = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Actualiza estado del lavado (admin/staff). Valida transiciones permitidas.
+ * @route   PUT /api/cars/update-status/:carId
+ * @access  Private (admin, staff)
+ */
 exports.updateCarStatus = async (req, res, next) => {
   try {
     const { carId } = req.params;
     const { status } = req.body;
-
-    if (!status || !VALID_STATUSES.includes(status)) {
-      throw new ValidationError(`Estado inválido. Válidos: ${VALID_STATUSES.join(', ')}`);
-    }
 
     const car = await Car.findById(carId);
     if (!car) {
@@ -150,6 +157,11 @@ exports.updateCarStatus = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Cierra vehículo como Completado y crea pago pendiente. Crea pago primero, si falla el guardado del auto elimina el pago (rollback manual).
+ * @route   PUT /api/cars/close-car/:carId
+ * @access  Private (admin, staff)
+ */
 exports.closeCarStatus = async (req, res, next) => {
   try {
     const { carId } = req.params;
@@ -165,10 +177,7 @@ exports.closeCarStatus = async (req, res, next) => {
       );
     }
 
-    car.status = 'Completado';
-    await car.save();
-
-    await Payment.create({
+    const payment = await Payment.create({
       userId: car.userId,
       plate: car.plate,
       method: 'Otro',
@@ -177,7 +186,13 @@ exports.closeCarStatus = async (req, res, next) => {
       carId: car._id,
     });
 
-    logger.info('Vehículo cerrado como completado', { carId, plate: car.plate });
+    car.status = 'Completado';
+    await car.save().catch(async (err) => {
+      await Payment.findByIdAndDelete(payment._id);
+      throw err;
+    });
+
+    logger.info('Vehículo cerrado como completado', { carId, plate: car.plate, paymentId: payment._id });
 
     res.status(200).json({
       message: 'Vehículo marcado como Completado',
@@ -193,6 +208,11 @@ exports.closeCarStatus = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Obtiene estadísticas de lavado por usuario (agrupado por estado)
+ * @route   GET /api/cars/stats/:userId
+ * @access  Private (owner or admin)
+ */
 exports.getCarsStats = async (req, res, next) => {
   try {
     const { userId } = req.params;
@@ -240,6 +260,11 @@ exports.getCarsStats = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Verifica disponibilidad de agendamiento para una fecha (máx 5 autos/día)
+ * @route   GET /api/cars/availability?date=YYYY-MM-DD
+ * @access  Private
+ */
 exports.checkAvailability = async (req, res, next) => {
   try {
     const { date } = req.query;

@@ -19,6 +19,11 @@ const generateRefreshToken = (userId) => {
   });
 };
 
+/**
+ * @desc    Registra usuario. El primer usuario registrado obtiene rol 'admin' automáticamente.
+ * @route   POST /api/auth/register
+ * @access  Público
+ */
 exports.registerUser = async (req, res, next) => {
   try {
     const { email, password, name } = req.body;
@@ -56,6 +61,11 @@ exports.registerUser = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Inicia sesión. Verifica bloqueo por fuerza bruta y credenciales.
+ * @route   POST /api/auth/login
+ * @access  Público
+ */
 exports.loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -101,6 +111,11 @@ exports.loginUser = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Renueva el token JWT usando refresh token
+ * @route   POST /api/auth/refresh
+ * @access  Público (con refresh token)
+ */
 exports.refreshToken = async (req, res, next) => {
   try {
     const { refreshToken } = req.body;
@@ -131,6 +146,11 @@ exports.refreshToken = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Cambia la contraseña del usuario autenticado
+ * @route   PUT /api/auth/change-password
+ * @access  Private
+ */
 exports.changePassword = async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;

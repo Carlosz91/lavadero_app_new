@@ -5,22 +5,15 @@ const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/App
 const VALID_METHODS = ['Efectivo', 'Tarjeta', 'Transferencia', 'Mercado Pago', 'Stripe', 'Otro'];
 const VALID_STATUSES = ['Pendiente', 'Pagado', 'Cancelado', 'Reembolsado'];
 
+/**
+ * @desc    Registra un pago manual
+ * @route   POST /api/payments
+ * @access  Private
+ */
 exports.createPayment = async (req, res, next) => {
   try {
     const { plate, method, amount, status, carId } = req.body;
     const userId = req.user.id;
-
-    if (!plate || !method || amount == null) {
-      throw new ValidationError('Faltan datos requeridos: plate, method, amount');
-    }
-
-    if (!VALID_METHODS.includes(method)) {
-      throw new ValidationError(`Método inválido. Válidos: ${VALID_METHODS.join(', ')}`);
-    }
-
-    if (status && !VALID_STATUSES.includes(status)) {
-      throw new ValidationError(`Estado inválido. Válidos: ${VALID_STATUSES.join(', ')}`);
-    }
 
     const newPayment = new Payment({
       userId,
@@ -41,6 +34,11 @@ exports.createPayment = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Obtiene pagos del usuario autenticado con paginación y filtro por status
+ * @route   GET /api/payments
+ * @access  Private
+ */
 exports.getPaymentsAuthenticated = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -72,6 +70,11 @@ exports.getPaymentsAuthenticated = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Obtiene pagos de un usuario específico (admin)
+ * @route   GET /api/payments/user/:userId
+ * @access  Private (admin)
+ */
 exports.getPaymentsByUserId = async (req, res, next) => {
   try {
     const { userId } = req.params;
@@ -103,18 +106,15 @@ exports.getPaymentsByUserId = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Actualiza estado y/o método de un pago
+ * @route   PUT /api/payments/:id
+ * @access  Private
+ */
 exports.updatePaymentStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, method } = req.body;
-
-    if (!status) {
-      throw new ValidationError('El estado es requerido');
-    }
-
-    if (!VALID_STATUSES.includes(status)) {
-      throw new ValidationError(`Estado inválido. Válidos: ${VALID_STATUSES.join(', ')}`);
-    }
 
     const updateData = { status };
     if (method) {
