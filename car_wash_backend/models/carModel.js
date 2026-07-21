@@ -10,6 +10,8 @@ const carSchema = new mongoose.Schema({
     enum: ['Básico', 'Premium', 'Completo', 'Detailing'],
   },
   amount: { type: Number, required: true, min: 0 },
+  scheduledDate: { type: Date },
+  scheduledTime: { type: String },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   status: {
     type: String,

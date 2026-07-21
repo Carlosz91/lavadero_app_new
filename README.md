@@ -14,10 +14,11 @@ Aplicación móvil para la gestión de lavaderos de vehículos. Permite registra
 ## Funcionalidades
 
 - **Registro de vehículos** — cualquier usuario autenticado puede registrar un auto
+- **Agendamiento** — selección de fecha y hora al registrar el vehículo
 - **Estado del lavado** — seguimiento en tiempo real con filtros por estado
 - **Gestión de pagos** — registro y consulta de pagos
 - **Panel admin** — `http://localhost:5000/admin/` (solo admin/staff)
-- **Roles** — `admin`/`staff` pueden cambiar estados; `user` solo registra y consulta
+- **Roles** — `admin`/`staff` pueden cambiar estados; `user` solo registra y agenda
 - **Primer usuario** registrado se convierte en `admin` automáticamente
 - **Notificaciones push**, autenticación biométrica, modo oscuro
 - **API REST** documentada con Swagger en `http://localhost:5000/api-docs`

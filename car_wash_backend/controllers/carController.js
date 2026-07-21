@@ -14,7 +14,7 @@ const VALID_TRANSITIONS = {
 
 exports.registerCar = async (req, res, next) => {
   try {
-    const { plate, model, brand, washType, amount } = req.body;
+    const { plate, model, brand, washType, amount, scheduledDate, scheduledTime } = req.body;
     const userId = req.user.id;
 
     if (!VALID_WASH_TYPES.includes(washType)) {
@@ -32,8 +32,9 @@ exports.registerCar = async (req, res, next) => {
       brand: brand.trim(),
       washType,
       amount,
+      scheduledDate: scheduledDate || undefined,
+      scheduledTime: scheduledTime || undefined,
       userId,
-      status: 'Pendiente',
     });
 
     await newCar.save();

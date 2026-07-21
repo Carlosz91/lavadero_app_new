@@ -390,6 +390,15 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
               'Monto',
               valueColor: AppColors.success,
             ),
+            if (car['scheduledDate'] != null) ...[
+              const SizedBox(height: 12),
+              _buildCarInfo(
+                Icons.calendar_today,
+                '${_formatDate(car['scheduledDate'])} ${car['scheduledTime'] ?? ''}',
+                'Agendado',
+                valueColor: AppColors.warning,
+              ),
+            ],
             const SizedBox(height: 16),
             const Divider(height: 1),
             const SizedBox(height: 16),

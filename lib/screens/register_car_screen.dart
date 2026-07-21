@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
@@ -34,6 +35,8 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   };
 
   String _selectedWashType = 'B\u00e1sico';
+  DateTime _scheduledDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _scheduledTime = const TimeOfDay(hour: 9, minute: 0);
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -57,6 +60,24 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
       _selectedWashType = type;
       _amountController.text = _washPrices[type]!.toStringAsFixed(0);
     });
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _scheduledDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 60)),
+    );
+    if (picked != null) setState(() => _scheduledDate = picked);
+  }
+
+  Future<void> _selectTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _scheduledTime,
+    );
+    if (picked != null) setState(() => _scheduledTime = picked);
   }
 
   Future<void> _registerCar() async {
@@ -83,6 +104,11 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
         throw Exception('No se encontr\u00f3 el usuario. Inicia sesi\u00f3n nuevamente.');
       }
 
+      final scheduledDateStr =
+          '${_scheduledDate.year}-${_scheduledDate.month.toString().padLeft(2, '0')}-${_scheduledDate.day.toString().padLeft(2, '0')}';
+      final scheduledTimeStr =
+          '${_scheduledTime.hour.toString().padLeft(2, '0')}:${_scheduledTime.minute.toString().padLeft(2, '0')}';
+
       final httpService = HttpService();
       await httpService.loadToken();
       final response = await httpService.post(
@@ -93,6 +119,8 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
           'brand': brand,
           'washType': washType,
           'amount': amount,
+          'scheduledDate': scheduledDateStr,
+          'scheduledTime': scheduledTimeStr,
           'userId': userId,
         },
       );
@@ -194,6 +222,10 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
                       child: _buildWashOption(type, _washPrices[type]!),
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('Agendar Lavado'),
+                  const SizedBox(height: 12),
+                  _buildDateTimePicker(),
                   const SizedBox(height: 20),
                   _buildInputField(
                     controller: _amountController,
@@ -267,6 +299,89 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Text(title, style: AppTextStyles.h3),
+    );
+  }
+
+  Widget _buildDateTimePicker() {
+    final dateFormat = DateFormat('dd/MM/yyyy');
+    final timeFormat = DateFormat('HH:mm');
+    final dateTime = DateTime(
+      _scheduledDate.year, _scheduledDate.month, _scheduledDate.day,
+      _scheduledTime.hour, _scheduledTime.minute,
+    );
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: _selectDate,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.calendar_today, color: AppColors.primary, size: 22),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _selectDate,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Fecha', style: AppTextStyles.caption),
+                        const SizedBox(height: 2),
+                        Text(
+                          dateFormat.format(_scheduledDate),
+                          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: _selectTime,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.access_time, color: AppColors.primary, size: 22),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: _selectTime,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Hora', style: AppTextStyles.caption),
+                      const SizedBox(height: 2),
+                      Text(
+                        timeFormat.format(dateTime),
+                        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
