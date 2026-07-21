@@ -89,6 +89,54 @@
     let pedidos = [];
     let authToken = localStorage.getItem('adminToken') || '';
     let userEmail = localStorage.getItem('adminEmail') || '';
+    let refreshTimer = null;
+
+    function decodeToken(token) {
+      try {
+        const payload = token.split('.')[1];
+        return JSON.parse(atob(payload));
+      } catch {
+        return null;
+      }
+    }
+
+    function getTokenExpiry(token) {
+      const decoded = decodeToken(token);
+      return decoded ? decoded.exp * 1000 : 0;
+    }
+
+    function isTokenExpired(token) {
+      return Date.now() >= getTokenExpiry(token);
+    }
+
+    function getTimeUntilExpiry(token) {
+      return Math.max(0, getTokenExpiry(token) - Date.now());
+    }
+
+    async function refreshToken() {
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: authToken }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'No se pudo renovar');
+        authToken = data.token;
+        localStorage.setItem('adminToken', authToken);
+        scheduleRefresh();
+      } catch {
+        alert('Sesi\u00f3n expirada. Vuelva a iniciar sesi\u00f3n.');
+        logout();
+      }
+    }
+
+    function scheduleRefresh() {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      const timeLeft = getTimeUntilExpiry(authToken);
+      if (timeLeft <= 0) { logout(); return; }
+      refreshTimer = setTimeout(refreshToken, Math.max(60000, timeLeft - 30000));
+    }
 
     async function login() {
       const email = document.getElementById('loginEmail').value.trim();
@@ -96,7 +144,7 @@
       const errorEl = document.getElementById('loginError');
 
       if (!email || !password) {
-        errorEl.textContent = 'Ingrese correo y contrase&ntilde;a';
+        errorEl.textContent = 'Ingrese correo y contrase\u00f1a';
         errorEl.classList.remove('hidden');
         return;
       }
@@ -111,17 +159,15 @@
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Credenciales inv&aacute;lidas');
+        if (!res.ok) throw new Error(data.error || 'Credenciales inv\u00e1lidas');
 
         authToken = data.token;
         userEmail = email;
         localStorage.setItem('adminToken', authToken);
         localStorage.setItem('adminEmail', email);
 
-        document.getElementById('loginForm').classList.add('hidden');
-        document.getElementById('userInfo').classList.remove('hidden');
-        document.getElementById('userName').textContent = email;
-        document.getElementById('searchSection').classList.remove('hidden');
+        showLoggedIn();
+        scheduleRefresh();
 
         document.getElementById('loginEmail').value = '';
         document.getElementById('loginPassword').value = '';
@@ -132,7 +178,15 @@
       }
     }
 
+    function showLoggedIn() {
+      document.getElementById('loginForm').classList.add('hidden');
+      document.getElementById('userInfo').classList.remove('hidden');
+      document.getElementById('userName').textContent = userEmail;
+      document.getElementById('searchSection').classList.remove('hidden');
+    }
+
     function logout() {
+      if (refreshTimer) clearTimeout(refreshTimer);
       authToken = '';
       userEmail = '';
       localStorage.removeItem('adminToken');
@@ -151,16 +205,24 @@
     }
 
     async function apiFetch(url, options = {}) {
+      if (isTokenExpired(authToken)) {
+        await refreshToken();
+      }
       const res = await fetch(url, {
         ...options,
         headers: { ...getHeaders(), ...options.headers },
       });
       if (res.status === 401) {
-        alert('Sesi&oacute;n expirada. Vuelva a iniciar sesi&oacute;n.');
+        alert('Sesi\u00f3n expirada. Vuelva a iniciar sesi\u00f3n.');
         logout();
         throw new Error('No autorizado');
       }
       return res;
+    }
+
+    if (authToken && !isTokenExpired(authToken)) {
+      showLoggedIn();
+      scheduleRefresh();
     }
 
     async function cargarPedidos() {

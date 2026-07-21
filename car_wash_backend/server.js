@@ -40,7 +40,14 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-app.use(express.json({ limit: '10kb' }));
+// Stripe webhook necesita body raw (antes de express.json)
+app.use((req, res, next) => {
+  if (req.path === '/api/stripe/webhook') {
+    express.raw({ type: 'application/json' })(req, res, next);
+  } else {
+    express.json({ limit: '10kb' })(req, res, next);
+  }
+});
 app.use(express.urlencoded({ limit: '10kb' }));
 app.use(sanitizeInput);
 

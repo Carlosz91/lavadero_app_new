@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const { ValidationError } = require('../utils/AppError');
 
 const HOST = process.env.STRIPE_REDIRECT_HOST || 'http://10.0.2.2:5000';
+const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
 exports.createCheckoutSession = async (req, res, next) => {
   try {
@@ -53,9 +54,8 @@ exports.createCheckoutSession = async (req, res, next) => {
         },
       ],
       mode: 'payment',
-      success_url: `${HOST}/api/stripe/success?session_id={CHECKOUT_SESSION_ID}&paymentId=${payment._id}`,
-      cancel_url: `${HOST}/api/stripe/cancel?paymentId=${payment._id}`,
-      client_reference_id: payment._id.toString(),
+      success_url: `${HOST}/api/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${HOST}/api/stripe/cancel`,
       metadata: { paymentId: payment._id.toString(), userId },
     });
 
@@ -73,16 +73,33 @@ exports.createCheckoutSession = async (req, res, next) => {
 };
 
 exports.success = async (req, res) => {
-  const { paymentId, session_id } = req.query;
-  if (paymentId) {
-    await Payment.findByIdAndUpdate(paymentId, { status: 'Pagado' });
-    logger.info('Pago Stripe exitoso', { paymentId, sessionId: session_id });
-  }
   res.send(`<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f0fdf4;"><div style="text-align:center;"><h1 style="color:#16a34a;">\u2705 Pago exitoso</h1><p>Gracias por tu pago. Ya puedes cerrar esta ventana.</p></div></body></html>`);
 };
 
 exports.cancel = async (req, res) => {
-  const { paymentId } = req.query;
-  logger.warn('Pago Stripe cancelado', { paymentId });
+  logger.warn('Pago Stripe cancelado');
   res.send(`<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#fef2f2;"><div style="text-align:center;"><h1 style="color:#dc2626;">\u274c Pago cancelado</h1><p>El pago no se complet\u00f3. Intenta de nuevo.</p></div></body></html>`);
+};
+
+exports.webhook = async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, WEBHOOK_SECRET);
+  } catch (err) {
+    logger.error('Firma de webhook Stripe inválida', { error: err.message });
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const paymentId = session.metadata?.paymentId;
+    if (paymentId) {
+      await Payment.findByIdAndUpdate(paymentId, { status: 'Pagado', method: 'Stripe' });
+      logger.info('Webhook: pago Stripe confirmado', { paymentId, sessionId: session.id });
+    }
+  }
+
+  res.json({ received: true });
 };
