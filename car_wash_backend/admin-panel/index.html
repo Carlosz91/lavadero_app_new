@@ -90,6 +90,7 @@
     let authToken = localStorage.getItem('adminToken') || '';
     let userEmail = localStorage.getItem('adminEmail') || '';
     let refreshTimer = null;
+    const API_BASE = window.location.origin + '';
 
     function decodeToken(token) {
       try {
@@ -115,7 +116,7 @@
 
     async function refreshToken() {
       try {
-        const res = await fetch('http://localhost:5000/api/auth/refresh', {
+        const res = await fetch(`${API_BASE}/api/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: authToken }),
@@ -152,7 +153,7 @@
       errorEl.classList.add('hidden');
 
       try {
-        const res = await fetch('http://localhost:5000/api/auth/login', {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
@@ -239,7 +240,7 @@
       }
 
       try {
-        const res = await apiFetch(`http://localhost:5000/api/cars/status/${userId}`);
+        const res = await apiFetch(`${API_BASE}/api/cars/status/${userId}`);
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || 'Error al obtener pedidos');
@@ -349,7 +350,7 @@
     async function moverAProgreso(carId) {
       if (!confirm('Mover este pedido a "En Progreso"?')) return;
       try {
-        const res = await apiFetch(`http://localhost:5000/api/cars/update-status/${carId}`, {
+        const res = await apiFetch(`${API_BASE}/api/cars/update-status/${carId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'En Progreso' }),
@@ -368,7 +369,7 @@
     async function cerrarPedido(carId) {
       if (!confirm('Cerrar este pedido como completado?')) return;
       try {
-        const res = await apiFetch(`http://localhost:5000/api/cars/close-car/${carId}`, {
+        const res = await apiFetch(`${API_BASE}/api/cars/close-car/${carId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'Completado' }),
