@@ -103,10 +103,11 @@ exports.cancel = async (req, res) => {
  */
 exports.webhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
+  const payload = req.rawBody || req.body;
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(payload, sig, WEBHOOK_SECRET);
   } catch (err) {
     logger.error('Firma de webhook Stripe inválida', { error: err.message });
     return res.status(400).send(`Webhook Error: ${err.message}`);

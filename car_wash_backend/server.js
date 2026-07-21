@@ -43,7 +43,12 @@ app.use(helmet({
 
 app.use((req, res, next) => {
   if (req.path === '/api/stripe/webhook') {
-    express.raw({ type: 'application/json' })(req, res, next);
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => {
+      req.rawBody = data;
+      next();
+    });
   } else {
     express.json({ limit: '10kb' })(req, res, next);
   }
