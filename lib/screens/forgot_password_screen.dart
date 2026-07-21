@@ -4,6 +4,7 @@ import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
+import '../widgets/water_animation.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -78,19 +79,20 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Recuperar Contrase\u00f1a'),
-      ),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Container(
-          height: double.infinity,
+        title: const Text('Recuperar Contraseña'),
+        flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFE3F2FD), AppColors.background, AppColors.background],
+              colors: [AppColors.primary, AppColors.primaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
+        ),
+      ),
+      body: WaterBackground(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
@@ -99,17 +101,17 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeader(),
+                    StaggeredFadeIn(index: 0, child: _buildHeader()),
                     const SizedBox(height: 32),
-                    if (!_emailSent) _buildEmailField(),
+                    if (!_emailSent) StaggeredFadeIn(index: 1, child: _buildEmailField()),
                     if (!_emailSent) const SizedBox(height: 20),
                     if (_errorMessage != null) ...[
-                      ErrorBox(message: _errorMessage!),
+                      StaggeredFadeIn(index: 2, child: ErrorBox(message: _errorMessage!)),
                       const SizedBox(height: 20),
                     ],
-                    _buildActionButtons(),
+                    StaggeredFadeIn(index: 3, child: _buildActionButtons()),
                     const SizedBox(height: 24),
-                    if (!_emailSent) _buildHintText(),
+                    if (!_emailSent) StaggeredFadeIn(index: 4, child: _buildHintText()),
                   ],
                 ),
               ),

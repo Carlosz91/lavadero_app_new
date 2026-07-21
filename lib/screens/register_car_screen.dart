@@ -6,6 +6,7 @@ import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
+import '../widgets/water_animation.dart';
 
 class RegisterCarScreen extends StatefulWidget {
   const RegisterCarScreen({super.key});
@@ -192,89 +193,76 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const GradientAppBar(title: 'Registrar Veh\u00edculo'),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Container(
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.background, Colors.white],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
+      appBar: const GradientAppBar(title: 'Registrar Vehículo'),
+      body: WaterBackground(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
               child: Column(
                 children: [
-                  _buildHeader(),
+                  StaggeredFadeIn(index: 0, child: _buildHeader()),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Informaci\u00f3n del Veh\u00edculo'),
+                  StaggeredFadeIn(index: 1, child: _buildSectionTitle('Información del Vehículo')),
                   const SizedBox(height: 16),
-                  _buildInputField(
+                  StaggeredFadeIn(index: 2, child: _buildInputField(
                     controller: _plateController,
                     label: 'Placa',
                     icon: Icons.confirmation_number,
                     hint: 'ABC123',
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingrese la placa';
-                      }
-                      if (value.length < 4) {
-                        return 'M\u00ednimo 4 caracteres';
-                      }
+                      if (value == null || value.isEmpty) return 'Ingrese la placa';
+                      if (value.length < 4) return 'Mínimo 4 caracteres';
                       return null;
                     },
-                  ),
+                  )),
                   const SizedBox(height: 16),
-                  _buildInputField(
+                  StaggeredFadeIn(index: 3, child: _buildInputField(
                     controller: _modelController,
                     label: 'Modelo',
                     icon: Icons.model_training,
                     hint: 'Civic, Corolla...',
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Ingrese el modelo'
-                        : null,
-                  ),
+                    validator: (value) => value == null || value.isEmpty ? 'Ingrese el modelo' : null,
+                  )),
                   const SizedBox(height: 16),
-                  _buildInputField(
+                  StaggeredFadeIn(index: 4, child: _buildInputField(
                     controller: _brandController,
                     label: 'Marca',
                     icon: Icons.branding_watermark,
                     hint: 'Toyota, Honda...',
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Ingrese la marca'
-                        : null,
-                  ),
+                    validator: (value) => value == null || value.isEmpty ? 'Ingrese la marca' : null,
+                  )),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Seleccione el Tipo de Lavado'),
+                  StaggeredFadeIn(index: 5, child: _buildSectionTitle('Seleccione el Tipo de Lavado')),
                   const SizedBox(height: 12),
-                  ..._washTypes.map(
-                    (type) => Padding(
+                  ..._washTypes.asMap().entries.map(
+                    (e) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: _buildWashOption(type, _washPrices[type]!),
+                      child: StaggeredFadeIn(
+                        index: 6 + e.key,
+                        child: _buildWashOption(e.value, _washPrices[e.value]!),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  _buildSectionTitle('Agendar Lavado'),
+                  StaggeredFadeIn(index: 10, child: _buildSectionTitle('Agendar Lavado')),
                   const SizedBox(height: 12),
-                  _buildDateTimePicker(),
+                  StaggeredFadeIn(index: 11, child: _buildDateTimePicker()),
                   const SizedBox(height: 20),
-                  _buildInputField(
+                  StaggeredFadeIn(index: 12, child: _buildInputField(
                     controller: _amountController,
                     label: 'Monto (Gs.)',
                     icon: Icons.attach_money,
                     readOnly: true,
-                  ),
+                  )),
                   if (_errorMessage != null) ...[
                     const SizedBox(height: 16),
-                    ErrorBox(message: _errorMessage!),
+                    StaggeredFadeIn(index: 13, child: ErrorBox(message: _errorMessage!)),
                   ],
                   const SizedBox(height: 24),
-                  _buildActionButtons(),
+                  StaggeredFadeIn(index: 14, child: _buildActionButtons()),
                 ],
               ),
             ),

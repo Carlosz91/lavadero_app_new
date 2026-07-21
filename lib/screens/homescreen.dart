@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
+import '../widgets/water_animation.dart';
 import 'register_car_screen.dart';
 import 'wash_status_screen.dart';
 import 'payments_screen.dart';
@@ -209,16 +210,19 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                InfoCard(
-                  icon: Icons.person,
-                  title: 'Usuario',
-                  subtitle: widget.userEmail,
-                  color: AppColors.primary,
+                StaggeredFadeIn(
+                  index: 0,
+                  child: InfoCard(
+                    icon: Icons.person,
+                    title: 'Usuario',
+                    subtitle: widget.userEmail,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(height: 24),
-                Text(
-                  'Acciones',
-                  style: AppTextStyles.h2,
+                StaggeredFadeIn(
+                  index: 1,
+                  child: Text('Acciones', style: AppTextStyles.h2),
                 ),
                 const SizedBox(height: 16),
                 GridView.count(
@@ -228,64 +232,62 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                   children: [
-                    ActionCard(
-                      label: 'Registrar\nAuto',
-                      icon: Icons.directions_car,
-                      backgroundColor: AppColors.primary,
-                      onPressed: () {
-                        Navigator.push(
+                    StaggeredFadeIn(
+                      index: 2,
+                      child: ActionCard(
+                        label: 'Registrar\nAuto',
+                        icon: Icons.directions_car,
+                        backgroundColor: AppColors.primary,
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RegisterCarScreen()),
+                        ),
+                      ),
+                    ),
+                    StaggeredFadeIn(
+                      index: 3,
+                      child: ActionCard(
+                        label: 'Estado de\nLavado',
+                        icon: Icons.local_car_wash,
+                        backgroundColor: const Color(0xFF00ACC1),
+                        onPressed: () {
+                          if (_userId != null) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => WashStatusScreen(userId: _userId!)),
+                            );
+                          } else {
+                            _showError('No se encontró el ID de usuario');
+                            _getUserId();
+                          }
+                        },
+                      ),
+                    ),
+                    StaggeredFadeIn(
+                      index: 4,
+                      child: ActionCard(
+                        label: 'Ver\nPagos',
+                        icon: Icons.payment,
+                        backgroundColor: AppColors.success,
+                        onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const RegisterCarScreen(),
+                            builder: (_) => PaymentsScreen(userEmail: widget.userEmail),
                           ),
-                        );
-                      },
+                        ),
+                      ),
                     ),
-                    ActionCard(
-                      label: 'Estado de\nLavado',
-                      icon: Icons.local_car_wash,
-                      backgroundColor: const Color(0xFF00ACC1),
-                      onPressed: () {
-                        if (_userId != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => WashStatusScreen(userId: _userId!),
-                            ),
-                          );
-                        } else {
-                          _showError('No se encontr\u00f3 el ID de usuario');
-                          _getUserId();
-                        }
-                      },
-                    ),
-                    ActionCard(
-                      label: 'Ver\nPagos',
-                      icon: Icons.payment,
-                      backgroundColor: AppColors.success,
-                      onPressed: () {
-                        Navigator.push(
+                    StaggeredFadeIn(
+                      index: 5,
+                      child: ActionCard(
+                        label: 'Configuración',
+                        icon: Icons.settings,
+                        backgroundColor: AppColors.warning,
+                        onPressed: () => Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => PaymentsScreen(
-                              userEmail: widget.userEmail,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    ActionCard(
-                      label: 'Configuraci\u00f3n',
-                      icon: Icons.settings,
-                      backgroundColor: AppColors.warning,
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SettingsScreen(),
-                          ),
-                        );
-                      },
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        ),
+                      ),
                     ),
                   ],
                 ),

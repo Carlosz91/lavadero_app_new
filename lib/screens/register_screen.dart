@@ -5,6 +5,7 @@ import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
+import '../widgets/water_animation.dart';
 import 'login_screen.dart';
 import 'homescreen.dart';
 
@@ -107,17 +108,9 @@ class RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Container(
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFE3F2FD), AppColors.background],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-          ),
+      body: WaterBackground(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -126,23 +119,23 @@ class RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 32),
-                    _buildHeader(),
+                    StaggeredFadeIn(index: 0, child: _buildHeader()),
                     const SizedBox(height: 32),
-                    _buildNameField(),
+                    StaggeredFadeIn(index: 1, child: _buildNameField()),
                     const SizedBox(height: 16),
-                    _buildEmailField(),
+                    StaggeredFadeIn(index: 2, child: _buildEmailField()),
                     const SizedBox(height: 16),
-                    _buildPasswordField(),
+                    StaggeredFadeIn(index: 3, child: _buildPasswordField()),
                     const SizedBox(height: 16),
-                    _buildConfirmPasswordField(),
+                    StaggeredFadeIn(index: 4, child: _buildConfirmPasswordField()),
                     if (_hasError) ...[
                       const SizedBox(height: 16),
-                      ErrorBox(message: _errorMessage),
+                      StaggeredFadeIn(index: 5, child: ErrorBox(message: _errorMessage)),
                     ],
                     const SizedBox(height: 28),
-                    _buildRegisterButton(),
+                    StaggeredFadeIn(index: 6, child: _buildRegisterButton()),
                     const SizedBox(height: 20),
-                    _buildLoginLink(),
+                    StaggeredFadeIn(index: 7, child: _buildLoginLink()),
                     const SizedBox(height: 24),
                   ],
                 ),

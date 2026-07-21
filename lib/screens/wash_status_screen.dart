@@ -5,6 +5,7 @@ import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
+import '../widgets/water_animation.dart';
 
 class WashStatusScreen extends StatefulWidget {
   final String userId;
@@ -176,36 +177,39 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
       body: _isLoading
           ? const LoadingState(message: 'Cargando estado de lavado...')
           : _hasError
-              ? ErrorState(
-                  message: _errorMessage,
-                  onRetry: _fetchCarsStatus,
-                )
+              ? ErrorState(message: _errorMessage, onRetry: _fetchCarsStatus)
               : _cars.isEmpty
                   ? _buildEmptyState()
-                  : RefreshIndicator(
-                      onRefresh: _fetchCarsStatus,
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            _buildStatsCard(),
-                            const SizedBox(height: 20),
-                            _buildStatusChips(),
-                            const SizedBox(height: 20),
-                            if (filteredCars.isEmpty)
-                              _buildNoFilteredState()
-                            else
-                              Column(
-                                children: filteredCars
-                                    .map((car) => Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 12),
-                                          child: _buildCarCard(car),
-                                        ))
-                                    .toList(),
-                              ),
-                          ],
+                  : WaterBackground(
+                      child: RefreshIndicator(
+                        onRefresh: _fetchCarsStatus,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              StaggeredFadeIn(index: 0, child: _buildStatsCard()),
+                              const SizedBox(height: 20),
+                              StaggeredFadeIn(index: 1, child: _buildStatusChips()),
+                              const SizedBox(height: 20),
+                              if (filteredCars.isEmpty)
+                                _buildNoFilteredState()
+                              else
+                                Column(
+                                  children: filteredCars
+                                      .asMap()
+                                      .entries
+                                      .map((e) => Padding(
+                                            padding: const EdgeInsets.only(bottom: 12),
+                                            child: StaggeredFadeIn(
+                                              index: 2 + e.key,
+                                              child: _buildCarCard(e.value),
+                                            ),
+                                          ))
+                                      .toList(),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
