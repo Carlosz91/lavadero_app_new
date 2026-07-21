@@ -2,7 +2,7 @@ const Payment = require('../models/paymentModel');
 const logger = require('../utils/logger');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/AppError');
 
-const VALID_METHODS = ['Efectivo', 'Tarjeta', 'Transferencia', 'Otro'];
+const VALID_METHODS = ['Efectivo', 'Tarjeta', 'Transferencia', 'Mercado Pago', 'Stripe', 'Otro'];
 const VALID_STATUSES = ['Pendiente', 'Pagado', 'Cancelado', 'Reembolsado'];
 
 exports.createPayment = async (req, res, next) => {

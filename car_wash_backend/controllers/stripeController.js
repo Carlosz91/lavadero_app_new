@@ -3,7 +3,7 @@ const Payment = require('../models/paymentModel');
 const logger = require('../utils/logger');
 const { ValidationError } = require('../utils/AppError');
 
-const HOST = process.env.HOST || 'http://localhost:5000';
+const HOST = process.env.STRIPE_REDIRECT_HOST || 'http://10.0.2.2:5000';
 
 exports.createCheckoutSession = async (req, res, next) => {
   try {
@@ -21,7 +21,6 @@ exports.createCheckoutSession = async (req, res, next) => {
       amount,
       status: 'Pendiente',
       carId: carId || null,
-      description: description || `Lavado - ${plate}`,
     });
     await payment.save();
 
