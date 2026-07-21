@@ -41,7 +41,6 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// Stripe webhook necesita body raw (antes de express.json)
 app.use((req, res, next) => {
   if (req.path === '/api/stripe/webhook') {
     express.raw({ type: 'application/json' })(req, res, next);
