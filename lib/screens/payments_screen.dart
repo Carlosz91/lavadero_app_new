@@ -101,7 +101,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     }
   }
 
-  Future<void> _payWithMercadoPago() async {
+  Future<void> _payWithStripe() async {
     setState(() => _processingPayment = true);
 
     try {
@@ -109,7 +109,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       await httpService.loadToken();
 
       final response = await httpService.post(
-        '${ApiConfig.baseUrl}/api/mercadopago/create-preference',
+        '${ApiConfig.baseUrl}/api/stripe/create-checkout-session',
         {
           'plate': _plate != 'N/A' ? _plate : 'N/D',
           'amount': _amount,
@@ -117,17 +117,17 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         },
       );
 
-      final initPoint = response['initPoint'] as String?;
-      if (initPoint != null) {
-        final uri = Uri.parse(initPoint);
+      final url = response['url'] as String?;
+      if (url != null) {
+        final uri = Uri.parse(url);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         } else {
-          _showSnackBar('No se pudo abrir Mercado Pago', success: false);
+          _showSnackBar('No se pudo abrir Stripe', success: false);
         }
       }
     } catch (e) {
-      _showSnackBar('Error al conectar con Mercado Pago: $e', success: false);
+      _showSnackBar('Error al conectar con Stripe: $e', success: false);
     } finally {
       setState(() => _processingPayment = false);
     }
@@ -473,12 +473,12 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               ),
               const SizedBox(height: 12),
               _paymentOptionButton(
-                title: 'Mercado Pago',
-                icon: Icons.payment,
-                color: const Color(0xFF00B1EA),
+                title: 'Stripe (Tarjeta)',
+                icon: Icons.credit_card,
+                color: const Color(0xFF635BFF),
                 onTap: () {
                   Navigator.pop(context);
-                  _payWithMercadoPago();
+                  _payWithStripe();
                 },
               ),
               const SizedBox(height: 12),

@@ -54,7 +54,7 @@ app.get('/admin', (req, res) => res.redirect('/admin/'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/cars', require('./routes/carRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
-app.use('/api/mercadopago', require('./routes/mercadopagoRoutes'));
+app.use('/api/stripe', require('./routes/stripeRoutes'));
 app.use('/api/admin', require('./adminRoutes'));
 
 app.get('/health', async (req, res) => {
