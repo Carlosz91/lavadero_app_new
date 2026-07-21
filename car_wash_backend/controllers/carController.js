@@ -69,7 +69,7 @@ exports.getUserCarsStatus = async (req, res, next) => {
 
     const [cars, total] = await Promise.all([
       Car.find({ userId })
-        .select('plate model brand washType amount status createdAt updatedAt')
+        .select('plate model brand washType amount status scheduledDate scheduledTime createdAt updatedAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),

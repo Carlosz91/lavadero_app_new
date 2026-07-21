@@ -257,6 +257,12 @@
               <strong>Registrado</strong>
               <span>${new Date(car.createdAt).toLocaleDateString()}</span>
             </div>
+            ${car.scheduledDate ? `
+            <div class="card-info">
+              <strong>Agendado</strong>
+              <span>${new Date(car.scheduledDate).toLocaleDateString()} ${car.scheduledTime || ''}</span>
+            </div>
+            ` : ''}
           </div>
           <div class="card-actions">
             ${car.status === 'Pendiente' ? `
