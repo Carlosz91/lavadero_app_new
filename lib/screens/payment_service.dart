@@ -17,6 +17,7 @@ class PaymentService {
     String? status,
   }) async {
     try {
+      await _httpService.loadToken();
       final queryParams = <String, String>{};
       if (carid != null && carid.isNotEmpty) queryParams['carid'] = carid;
       if (plate != null && plate.isNotEmpty) queryParams['plate'] = plate;
@@ -62,6 +63,7 @@ class PaymentService {
     String? carid,
   }) async {
     try {
+      await _httpService.loadToken();
       final body = {
         "plate": plate,
         "method": method,
@@ -87,6 +89,7 @@ class PaymentService {
     String status,
   ) async {
     try {
+      await _httpService.loadToken();
       final body = {"status": status};
 
       // ✅ Usar HttpService en lugar de http directo
@@ -109,7 +112,7 @@ class PaymentService {
     String status = "Completado",
   }) async {
     try {
-      // ✅ Construir URL con parámetros
+      await _httpService.loadToken();
       final uri = Uri.parse('$_washStatusEndpoint/$userId')
           .replace(queryParameters: {"status": status});
 
@@ -123,6 +126,14 @@ class PaymentService {
       }
 
       final dataMap = data as Map<String, dynamic>?;
+      if (dataMap?.containsKey('data') ?? false) {
+        final carsList = dataMap!['data'];
+        if (carsList is List) {
+          return carsList
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+        }
+      }
       if (dataMap?.containsKey('cars') ?? false) {
         final carsList = dataMap!['cars'];
         if (carsList is List) {

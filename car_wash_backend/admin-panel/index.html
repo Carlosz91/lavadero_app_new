@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin - Gestión de Lavados</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; min-height: 100vh; margin: 0; }
+    .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    h2 { text-align: center; color: #333; margin-bottom: 30px; font-size: 28px; }
+    .login-form { max-width: 400px; margin: 0 auto 30px; padding: 20px; background: #f8f9fa; border-radius: 10px; }
+    .login-form.hidden { display: none; }
+    .login-form input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 12px; box-sizing: border-box; }
+    .login-form input:focus { outline: none; border-color: #007bff; }
+    button { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 12px 24px; font-size: 16px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; margin: 5px; }
+    button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,123,255,0.3); }
+    .btn-danger { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+    .btn-warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; }
+    .btn-success { background: linear-gradient(135deg, #28a745 0%, #218838 100%); }
+    .btn-secondary { background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); }
+    .search-section { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+    .search-section.hidden { display: none; }
+    label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
+    input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s ease; box-sizing: border-box; }
+    input:focus { outline: none; border-color: #007bff; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 15px 0; border-left: 5px solid; transition: transform 0.2s ease; }
+    .card:hover { transform: translateY(-2px); }
+    .completado { border-left-color: #28a745; background: linear-gradient(135deg, #f8fff9 0%, #e8f5e9 100%); }
+    .en-progreso { border-left-color: #007bff; background: linear-gradient(135deg, #f0f8ff 0%, #e3f2fd 100%); }
+    .pendiente { border-left-color: #dc3545; background: linear-gradient(135deg, #fff5f5 0%, #ffebee 100%); }
+    .estado { font-weight: bold; padding: 6px 12px; border-radius: 20px; display: inline-block; font-size: 14px; }
+    .estado.completado { background: #28a745; color: white; }
+    .estado.en-progreso { background: #007bff; color: white; }
+    .estado.pendiente { background: #dc3545; color: white; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .card-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+    .card-info { display: flex; flex-direction: column; }
+    .card-info strong { color: #666; font-size: 14px; margin-bottom: 4px; }
+    .card-actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+    .loading { text-align: center; padding: 40px; color: #666; }
+    .error { color: #dc3545; text-align: center; padding: 20px; background: #ffebee; border-radius: 8px; margin: 10px 0; }
+    .success { color: #28a745; text-align: center; padding: 20px; background: #e8f5e9; border-radius: 8px; margin: 10px 0; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .stat-card { background: white; padding: 15px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .stat-number { font-size: 24px; font-weight: bold; margin: 10px 0; }
+    .stat-pendiente { color: #dc3545; }
+    .stat-progreso { color: #007bff; }
+    .stat-completado { color: #28a745; }
+    .user-info { text-align: right; margin-bottom: 20px; padding: 10px; background: #e8f5e9; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .user-info.hidden { display: none; }
+    @media (max-width: 768px) {
+      .container { padding: 15px; }
+      .card-body { grid-template-columns: 1fr; }
+      .card-actions { flex-direction: column; }
+      button { width: 100%; margin: 5px 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Panel de Gesti&oacute;n de Lavados</h2>
+
+    <div id="userInfo" class="user-info hidden">
+      <span>Conectado como: <strong id="userName"></strong></span>
+      <button class="btn-secondary" onclick="logout()">Cerrar sesi&oacute;n</button>
+    </div>
+
+    <div id="loginForm" class="login-form">
+      <h3 style="text-align:center;margin-bottom:20px;color:#333;">Iniciar sesi&oacute;n</h3>
+      <input type="email" id="loginEmail" placeholder="Correo electr&oacute;nico" />
+      <input type="password" id="loginPassword" placeholder="Contrase&ntilde;a" />
+      <div id="loginError" class="error hidden" style="margin-bottom:12px;"></div>
+      <button onclick="login()" style="width:100%;">Ingresar</button>
+    </div>
+
+    <div id="searchSection" class="search-section hidden">
+      <label for="userId">ID del Usuario:</label>
+      <div style="display:flex;gap:10px;">
+        <input type="text" id="userId" placeholder="Ingrese el ID del usuario (ej: 68220...)" style="flex:1;" />
+        <button onclick="cargarPedidos()" style="white-space:nowrap;">Cargar Pedidos</button>
+      </div>
+    </div>
+
+    <div id="statsContainer" class="stats"></div>
+    <div id="pedidosContainer"></div>
+  </div>
+
+  <script>
+    let pedidos = [];
+    let authToken = localStorage.getItem('adminToken') || '';
+    let userEmail = localStorage.getItem('adminEmail') || '';
+
+    async function login() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errorEl = document.getElementById('loginError');
+
+      if (!email || !password) {
+        errorEl.textContent = 'Ingrese correo y contrase&ntilde;a';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      errorEl.classList.add('hidden');
+
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Credenciales inv&aacute;lidas');
+
+        authToken = data.token;
+        userEmail = email;
+        localStorage.setItem('adminToken', authToken);
+        localStorage.setItem('adminEmail', email);
+
+        document.getElementById('loginForm').classList.add('hidden');
+        document.getElementById('userInfo').classList.remove('hidden');
+        document.getElementById('userName').textContent = email;
+        document.getElementById('searchSection').classList.remove('hidden');
+
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginPassword').value = '';
+
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.classList.remove('hidden');
+      }
+    }
+
+    function logout() {
+      authToken = '';
+      userEmail = '';
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminEmail');
+      document.getElementById('userInfo').classList.add('hidden');
+      document.getElementById('loginForm').classList.remove('hidden');
+      document.getElementById('searchSection').classList.add('hidden');
+      document.getElementById('statsContainer').innerHTML = '';
+      document.getElementById('pedidosContainer').innerHTML = '';
+    }
+
+    function getHeaders() {
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+      return headers;
+    }
+
+    async function apiFetch(url, options = {}) {
+      const res = await fetch(url, {
+        ...options,
+        headers: { ...getHeaders(), ...options.headers },
+      });
+      if (res.status === 401) {
+        alert('Sesi&oacute;n expirada. Vuelva a iniciar sesi&oacute;n.');
+        logout();
+        throw new Error('No autorizado');
+      }
+      return res;
+    }
+
+    async function cargarPedidos() {
+      const userId = document.getElementById('userId').value.trim();
+      const container = document.getElementById('pedidosContainer');
+      const statsContainer = document.getElementById('statsContainer');
+
+      container.innerHTML = '<div class="loading">Cargando pedidos...</div>';
+      statsContainer.innerHTML = '';
+
+      if (!userId) {
+        container.innerHTML = '<div class="error">Ingrese un ID de usuario v&aacute;lido.</div>';
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`http://localhost:5000/api/cars/status/${userId}`);
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Error al obtener pedidos');
+
+        pedidos = data.data || data.cars || [];
+
+        if (pedidos.length === 0) {
+          container.innerHTML = '<div class="success">No se encontraron pedidos para este usuario.</div>';
+          return;
+        }
+
+        actualizarEstadisticas();
+        renderizarPedidos();
+
+      } catch (err) {
+        if (err.message !== 'No autorizado') {
+          container.innerHTML = `<div class="error">${err.message}</div>`;
+        }
+      }
+    }
+
+    function actualizarEstadisticas() {
+      const statsContainer = document.getElementById('statsContainer');
+      const pendientes = pedidos.filter(p => p.status === 'Pendiente').length;
+      const enProgreso = pedidos.filter(p => p.status === 'En Progreso').length;
+      const completados = pedidos.filter(p => p.status === 'Completado').length;
+
+      statsContainer.innerHTML = `
+        <div class="stat-card">
+          <div>Pendientes</div>
+          <div class="stat-number stat-pendiente">${pendientes}</div>
+        </div>
+        <div class="stat-card">
+          <div>En Progreso</div>
+          <div class="stat-number stat-progreso">${enProgreso}</div>
+        </div>
+        <div class="stat-card">
+          <div>Completados</div>
+          <div class="stat-number stat-completado">${completados}</div>
+        </div>
+      `;
+    }
+
+    function renderizarPedidos() {
+      const container = document.getElementById('pedidosContainer');
+      container.innerHTML = '';
+
+      pedidos.forEach(car => {
+        const card = document.createElement('div');
+        card.className = `card ${car.status.toLowerCase().replace(' ', '-')}`;
+
+        card.innerHTML = `
+          <div class="card-header">
+            <h3>${car.plate || 'N/D'}</h3>
+            <span id="status-${car._id}" class="estado ${car.status.toLowerCase().replace(' ', '-')}">
+              ${car.status}
+            </span>
+          </div>
+          <div class="card-body">
+            <div class="card-info">
+              <strong>Modelo</strong>
+              <span>${car.model || 'N/D'}</span>
+            </div>
+            <div class="card-info">
+              <strong>Marca</strong>
+              <span>${car.brand || 'N/D'}</span>
+            </div>
+            <div class="card-info">
+              <strong>Tipo de lavado</strong>
+              <span>${car.washType || 'N/D'}</span>
+            </div>
+            <div class="card-info">
+              <strong>Monto</strong>
+              <span>Gs. ${car.amount || '0'}</span>
+            </div>
+            <div class="card-info">
+              <strong>Registrado</strong>
+              <span>${new Date(car.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            ${car.status === 'Pendiente' ? `
+              <button class="btn-warning" onclick="moverAProgreso('${car._id}')">
+                Mover a En Progreso
+              </button>
+            ` : ''}
+            ${car.status === 'En Progreso' ? `
+              <button class="btn-success" onclick="cerrarPedido('${car._id}')">
+                Cerrar Pedido
+              </button>
+            ` : ''}
+            ${car.status === 'Completado' ? `
+              <span style="color: #28a745; font-weight: bold;">Pedido completado</span>
+            ` : ''}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    async function moverAProgreso(carId) {
+      if (!confirm('Mover este pedido a "En Progreso"?')) return;
+      try {
+        const res = await apiFetch(`http://localhost:5000/api/cars/update-status/${carId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'En Progreso' }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al actualizar');
+        const pedido = pedidos.find(p => p._id === carId);
+        if (pedido) pedido.status = 'En Progreso';
+        actualizarEstadisticas();
+        renderizarPedidos();
+      } catch (err) {
+        if (err.message !== 'No autorizado') alert('Error: ' + err.message);
+      }
+    }
+
+    async function cerrarPedido(carId) {
+      if (!confirm('Cerrar este pedido como completado?')) return;
+      try {
+        const res = await apiFetch(`http://localhost:5000/api/cars/close-car/${carId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Completado' }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Error al cerrar');
+        const pedido = pedidos.find(p => p._id === carId);
+        if (pedido) pedido.status = 'Completado';
+        actualizarEstadisticas();
+        renderizarPedidos();
+      } catch (err) {
+        if (err.message !== 'No autorizado') alert('Error: ' + err.message);
+      }
+    }
+
+    if (authToken && userEmail) {
+      document.getElementById('loginForm').classList.add('hidden');
+      document.getElementById('userInfo').classList.remove('hidden');
+      document.getElementById('userName').textContent = userEmail;
+      document.getElementById('searchSection').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

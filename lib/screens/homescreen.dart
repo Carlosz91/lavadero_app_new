@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
 import 'register_car_screen.dart';
 import 'wash_status_screen.dart';
@@ -18,7 +19,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final storage = const FlutterSecureStorage(); // Token seguro
+  final storage = const FlutterSecureStorage();
   String? _userId;
   bool _isLoading = false;
 
@@ -53,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } catch (_) {
-      _showError('Error al cerrar sesión');
+      _showError('Error al cerrar sesi\u00f3n');
     }
   }
 
@@ -62,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: AppColors.error,
       ),
     );
   }
@@ -71,9 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (_) => CustomDialog(
-        title: 'Cerrar sesión',
-        message: '¿Estás seguro de que quieres cerrar sesión?',
-        confirmText: 'Sí, cerrar',
+        title: 'Cerrar sesi\u00f3n',
+        message: '\u00bfEst\u00e1s seguro de que quieres cerrar sesi\u00f3n?',
+        confirmText: 'S\u00ed, cerrar',
         cancelText: 'Cancelar',
         isWarning: true,
         onConfirm: () {
@@ -88,24 +89,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("🚗 Car-Wash"),
-        centerTitle: true,
-        backgroundColor: Colors.blueAccent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _getUserId,
-            tooltip: 'Actualizar',
-          ),
-        ],
-      ),
       drawer: _buildDrawer(),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.blueAccent),
-            )
+          ? const LoadingState(message: 'Cargando datos...')
           : _buildBody(),
     );
   }
@@ -116,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           UserAccountsDrawerHeader(
             accountName: const Text(
-              "Bienvenido",
+              'Bienvenido',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             accountEmail: Text(
@@ -124,35 +110,29 @@ class _HomeScreenState extends State<HomeScreen> {
               style: const TextStyle(fontSize: 12),
             ),
             currentAccountPicture: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Colors.blueAccent.shade700,
-                    Colors.blueAccent.shade400,
-                  ],
+                  colors: [AppColors.primary, AppColors.primaryDark],
                 ),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.person, color: Colors.white, size: 40),
             ),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Colors.blueAccent.shade700,
-                  Colors.blueAccent.shade400,
-                ],
+                colors: [AppColors.primary, AppColors.primaryDark],
               ),
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.home, color: Colors.blueAccent),
+            leading: const Icon(Icons.home, color: AppColors.primary),
             title: const Text('Inicio'),
             onTap: () => Navigator.pop(context),
           ),
           ListTile(
-            leading: const Icon(Icons.directions_car, color: Colors.blue),
+            leading: const Icon(Icons.directions_car, color: AppColors.primary),
             title: const Text('Registrar Auto'),
             onTap: () {
               Navigator.pop(context);
@@ -163,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.local_car_wash, color: Colors.cyan),
+            leading: const Icon(Icons.local_car_wash, color: AppColors.primary),
             title: const Text('Estado de Lavado'),
             onTap: () {
               Navigator.pop(context);
@@ -180,13 +160,21 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.payment, color: Colors.green),
+            leading: const Icon(Icons.payment, color: AppColors.success),
             title: const Text('Pagos'),
-            onTap: () => Navigator.pop(context),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PaymentsScreen(userEmail: widget.userEmail),
+                ),
+              );
+            },
           ),
           ListTile(
-            leading: const Icon(Icons.settings, color: Colors.orange),
-            title: const Text('Configuración'),
+            leading: const Icon(Icons.settings, color: AppColors.warning),
+            title: const Text('Configuraci\u00f3n'),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -198,10 +186,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const Spacer(),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
+            leading: const Icon(Icons.logout, color: AppColors.error),
             title: const Text(
-              'Cerrar sesión',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+              'Cerrar sesi\u00f3n',
+              style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
             ),
             onTap: _confirmLogout,
           ),
@@ -213,152 +201,168 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBody() {
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ✅ Header con saludo
-            _buildHeader(),
-            const SizedBox(height: 30),
-
-            // ✅ Tarjeta de información del usuario
-            InfoCard(
-              icon: Icons.person,
-              title: 'Usuario',
-              subtitle: widget.userEmail,
-              color: Colors.blueAccent,
-            ),
-            const SizedBox(height: 24),
-
-            // ✅ Sección de acciones principales
-            const Text(
-              'Acciones',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ✅ Grid de acciones con ActionCard
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+      child: Column(
+        children: [
+          _buildHeader(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ActionCard(
-                  label: 'Registrar\nAuto',
-                  icon: Icons.directions_car,
-                  backgroundColor: Colors.blueAccent,
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const RegisterCarScreen(),
-                      ),
-                    );
-                  },
+                InfoCard(
+                  icon: Icons.person,
+                  title: 'Usuario',
+                  subtitle: widget.userEmail,
+                  color: AppColors.primary,
                 ),
-                ActionCard(
-                  label: 'Estado de\nLavado',
-                  icon: Icons.local_car_wash,
-                  backgroundColor: Colors.cyan,
-                  onPressed: () {
-                    if (_userId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => WashStatusScreen(userId: _userId!),
-                        ),
-                      );
-                    } else {
-                      _showError('No se encontró el ID de usuario');
-                      _getUserId();
-                    }
-                  },
+                const SizedBox(height: 24),
+                Text(
+                  'Acciones',
+                  style: AppTextStyles.h2,
                 ),
-                ActionCard(
-                  label: 'Ver\nPagos',
-                  icon: Icons.payment,
-                  backgroundColor: Colors.green,
-                  onPressed: () async {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PaymentsScreen(
-                          userEmail: widget.userEmail,
-                        ),
-                      ),
-                    );
-                  },
+                const SizedBox(height: 16),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  children: [
+                    ActionCard(
+                      label: 'Registrar\nAuto',
+                      icon: Icons.directions_car,
+                      backgroundColor: AppColors.primary,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterCarScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    ActionCard(
+                      label: 'Estado de\nLavado',
+                      icon: Icons.local_car_wash,
+                      backgroundColor: const Color(0xFF00ACC1),
+                      onPressed: () {
+                        if (_userId != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => WashStatusScreen(userId: _userId!),
+                            ),
+                          );
+                        } else {
+                          _showError('No se encontr\u00f3 el ID de usuario');
+                          _getUserId();
+                        }
+                      },
+                    ),
+                    ActionCard(
+                      label: 'Ver\nPagos',
+                      icon: Icons.payment,
+                      backgroundColor: AppColors.success,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaymentsScreen(
+                              userEmail: widget.userEmail,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    ActionCard(
+                      label: 'Configuraci\u00f3n',
+                      icon: Icons.settings,
+                      backgroundColor: AppColors.warning,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                ActionCard(
-                  label: 'Configuración',
-                  icon: Icons.settings,
-                  backgroundColor: Colors.orange,
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SettingsScreen(),
-                      ),
-                    );
-                  },
-                ),
+                const SizedBox(height: 24),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  /// ✅ Widget para header personalizado
   Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Image.asset(
-              'assets/logo.png',
-              height: 50,
-              width: 50,
-              errorBuilder: (_, __, ___) => Icon(
-                Icons.local_car_wash,
-                size: 50,
-                color: Colors.blueAccent.shade700,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '¡Bienvenido!',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Gestiona tus autos y lavados',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      ],
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 48, 20, 24),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Builder(
+                builder: (context) => GestureDetector(
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.menu, color: Colors.white, size: 24),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '\u00a1Bienvenido!',
+                      style: AppTextStyles.h2.copyWith(color: Colors.white),
+                    ),
+                    Text(
+                      'Gestiona tus autos y lavados',
+                      style: AppTextStyles.body.copyWith(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.local_car_wash,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

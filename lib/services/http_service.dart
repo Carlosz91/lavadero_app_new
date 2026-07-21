@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 /// ✅ Servicio centralizado para requests HTTP
@@ -138,6 +139,13 @@ class HttpService {
       }
       throw HttpException('Error al procesar respuesta: $e');
     }
+  }
+
+  /// ✅ Cargar token desde SharedPreferences
+  Future<void> loadToken() async {
+    if (_authToken != null) return;
+    final prefs = await SharedPreferences.getInstance();
+    _authToken = prefs.getString('token');
   }
 
   /// ✅ Limpiar token (logout)

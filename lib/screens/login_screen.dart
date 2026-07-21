@@ -4,9 +4,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/custom_widgets.dart';
 import 'homescreen.dart';
 import 'register_screen.dart';
-import 'ForgotPasswordScreen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -44,36 +46,23 @@ class LoginScreenState extends State<LoginScreen> {
       final String password = _passwordController.text;
 
       try {
-        // ✅ Usar HttpService en lugar de http directo
         final data = await _httpService.post(
           '${ApiConfig.baseUrl}/api/auth/login',
           {'email': email, 'password': password},
         );
 
-        // ✅ Guardar token seguro
         await storage.write(key: 'token', value: data['token']);
         _httpService.setAuthToken(data['token']);
 
-        // ✅ Guardar userId y email en SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userId', data['userId']);
         await prefs.setString('userEmail', email);
         await prefs.setString('token', data['token']);
+        final role = data['user']?['role'] ?? 'user';
+        await prefs.setString('role', role);
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('¡Inicio de sesión exitoso!'),
-            backgroundColor: Colors.green.shade700,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
-
-        // Navegar a home screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -118,65 +107,42 @@ class LoginScreenState extends State<LoginScreen> {
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Container(
-          decoration: BoxDecoration(
+          height: double.infinity,
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.blue.shade50, Colors.white, Colors.white],
+              colors: [Color(0xFFE3F2FD), AppColors.background, AppColors.background],
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
+          child: SafeArea(
             child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const SizedBox(height: 20),
-
-                    // ✅ Logo mejorado
+                  children: [
+                    const SizedBox(height: 48),
                     _buildLogo(),
-
-                    const SizedBox(height: 40),
-
-                    // ✅ Header
+                    const SizedBox(height: 32),
                     _buildHeader(),
-
                     const SizedBox(height: 40),
-
-                    // ✅ Email field
                     _buildEmailField(),
-
-                    const SizedBox(height: 20),
-
-                    // ✅ Password field
+                    const SizedBox(height: 16),
                     _buildPasswordField(),
-
-                    const SizedBox(height: 12),
-
-                    // ✅ Forgot password button
+                    const SizedBox(height: 8),
                     _buildForgotPasswordButton(),
-
-                    const SizedBox(height: 20),
-
-                    // ✅ Error message
-                    if (_errorMessage != null) _buildErrorMessage(),
-
-                    if (_errorMessage != null) const SizedBox(height: 20),
-
-                    // ✅ Login button
+                    const SizedBox(height: 16),
+                    if (_errorMessage != null) ...[
+                      ErrorBox(message: _errorMessage!),
+                      const SizedBox(height: 16),
+                    ],
                     _buildLoginButton(),
-
                     const SizedBox(height: 24),
-
-                    // ✅ Divider
                     _buildDivider(),
-
                     const SizedBox(height: 24),
-
-                    // ✅ Register link
                     _buildRegisterLink(),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -187,100 +153,56 @@ class LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  /// ✅ Widget para logo
   Widget _buildLogo() {
-    return Center(
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blueAccent.shade700,
-              Colors.blueAccent.shade400,
-            ],
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blueAccent.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    return Container(
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.primaryDark],
         ),
-        child: Center(
-          child: Image.asset(
-            'assets/logo.png',
-            width: 80,
-            height: 80,
-            errorBuilder: (context, error, stackTrace) {
-              return Icon(
-                Icons.local_car_wash,
-                size: 60,
-                color: Colors.white,
-              );
-            },
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
-        ),
+        ],
+      ),
+      child: const Icon(
+        Icons.local_car_wash,
+        size: 50,
+        color: Colors.white,
       ),
     );
   }
 
-  /// ✅ Widget para header
   Widget _buildHeader() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
+      children: [
         Text(
           'Bienvenido',
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: Colors.blueAccent,
-          ),
+          style: AppTextStyles.h1.copyWith(color: AppColors.primary),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
-          'Inicia sesión para continuar',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
+          'Inicia sesi\u00f3n para continuar',
+          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
   }
 
-  /// ✅ Widget para campo de email
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
-      decoration: InputDecoration(
-        labelText: 'Correo electrónico',
+      decoration: const InputDecoration(
+        labelText: 'Correo electr\u00f3nico',
         hintText: 'tu.email@ejemplo.com',
-        prefixIcon: const Icon(Icons.email, color: Colors.blueAccent),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 16.0,
-          horizontal: 16.0,
-        ),
+        prefixIcon: Icon(Icons.email),
       ),
       keyboardType: TextInputType.emailAddress,
       validator: (value) {
@@ -288,25 +210,24 @@ class LoginScreenState extends State<LoginScreen> {
           return 'Por favor ingresa tu email';
         }
         if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-          return 'Ingresa un email válido';
+          return 'Ingresa un email v\u00e1lido';
         }
         return null;
       },
     );
   }
 
-  /// ✅ Widget para campo de contraseña
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
       obscureText: _obscurePassword,
       decoration: InputDecoration(
-        labelText: 'Contraseña',
-        prefixIcon: const Icon(Icons.lock, color: Colors.blueAccent),
+        labelText: 'Contrase\u00f1a',
+        prefixIcon: const Icon(Icons.lock),
         suffixIcon: IconButton(
           icon: Icon(
             _obscurePassword ? Icons.visibility : Icons.visibility_off,
-            color: Colors.grey,
+            color: AppColors.textHint,
           ),
           onPressed: () {
             setState(() {
@@ -314,47 +235,28 @@ class LoginScreenState extends State<LoginScreen> {
             });
           },
         ),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 16.0,
-          horizontal: 16.0,
-        ),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Por favor ingresa tu contraseña';
+          return 'Por favor ingresa tu contrase\u00f1a';
         }
         if (value.length < 6) {
-          return 'La contraseña debe tener al menos 6 caracteres';
+          return 'La contrase\u00f1a debe tener al menos 6 caracteres';
         }
         return null;
       },
     );
   }
 
-  /// ✅ Widget para botón "Olvide contraseña"
   Widget _buildForgotPasswordButton() {
     return Align(
       alignment: Alignment.centerRight,
       child: TextButton(
         onPressed: _navigateToForgotPassword,
         child: const Text(
-          '¿Olvidaste tu contraseña?',
+          '\u00bfOlvidaste tu contrase\u00f1a?',
           style: TextStyle(
-            color: Colors.blueAccent,
+            color: AppColors.primary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -362,108 +264,60 @@ class LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  /// ✅ Widget para mensaje de error
-  Widget _buildErrorMessage() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              _errorMessage!,
-              style: TextStyle(
-                color: Colors.red.shade700,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// ✅ Widget para botón de login
   Widget _buildLoginButton() {
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 52,
       child: ElevatedButton(
         onPressed: _isLoading ? null : _login,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blueAccent,
-          disabledBackgroundColor: Colors.grey.shade400,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12.0),
-          ),
-          elevation: 4,
-          shadowColor: Colors.blueAccent.withOpacity(0.3),
-        ),
         child: _isLoading
             ? const SizedBox(
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(
                   color: Colors.white,
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                 ),
               )
             : const Text(
-                'Iniciar sesión',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Iniciar sesi\u00f3n',
               ),
       ),
     );
   }
 
-  /// ✅ Widget para divider
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.grey.shade300)),
+        const Expanded(child: Divider()),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             'o',
-            style: TextStyle(
-                color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+            style: AppTextStyles.body.copyWith(color: AppColors.textHint),
           ),
         ),
-        Expanded(child: Divider(color: Colors.grey.shade300)),
+        const Expanded(child: Divider()),
       ],
     );
   }
 
-  /// ✅ Widget para link de registro
   Widget _buildRegisterLink() {
-    return Center(
-      child: TextButton(
-        onPressed: _navigateToRegister,
-        child: RichText(
-          text: TextSpan(
-            text: '¿No tienes cuenta? ',
-            style: TextStyle(color: Colors.grey.shade600),
-            children: const [
-              TextSpan(
-                text: 'Regístrate ahora',
-                style: TextStyle(
-                  color: Colors.blueAccent,
-                  fontWeight: FontWeight.bold,
-                ),
+    return TextButton(
+      onPressed: _navigateToRegister,
+      child: RichText(
+        text: TextSpan(
+          text: '\u00bfNo tienes cuenta? ',
+          style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          children: const [
+            TextSpan(
+              text: 'Reg\u00edstrate ahora',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
