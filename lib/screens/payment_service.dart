@@ -37,10 +37,10 @@ class PaymentService {
       }
 
       final dataMap = data as Map<String, dynamic>?;
-      if (dataMap?.containsKey('payments') ?? false) {
-        final paymentsList = dataMap!['payments'];
-        if (paymentsList is List) {
-          return paymentsList
+      if (dataMap != null) {
+        final source = dataMap['data'] ?? dataMap['payments'];
+        if (source is List) {
+          return source
               .map((e) => Map<String, dynamic>.from(e as Map))
               .toList();
         }
