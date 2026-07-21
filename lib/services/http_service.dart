@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
 
 /// ✅ Servicio centralizado para requests HTTP
@@ -14,6 +15,18 @@ class HttpService {
   HttpService._internal();
 
   String? _authToken;
+
+  Function()? onUnauthorized;
+
+  Future<void> _clearAuth() async {
+    _authToken = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('refreshToken');
+    const storage = FlutterSecureStorage();
+    await storage.delete(key: 'token');
+    await storage.delete(key: 'refreshToken');
+  }
 
   /// ✅ Setter para guardar token JWT
   void setAuthToken(String token) {
@@ -96,7 +109,7 @@ class HttpService {
   }
 
   /// ✅ Manejo centralizado de respuestas
-  Map<String, dynamic> _handleResponse(http.Response response) {
+  Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
     try {
       final decoded = json.decode(response.body) as Map<String, dynamic>;
 
@@ -111,8 +124,8 @@ class HttpService {
           );
 
         case 401:
-          // ✅ Token expirado - limpiar y notificar
-          _authToken = null;
+          await _clearAuth();
+          onUnauthorized?.call();
           throw UnauthorizedException(
             decoded['error'] ?? 'Sesión expirada',
           );
