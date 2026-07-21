@@ -74,11 +74,12 @@
     </div>
 
     <div id="searchSection" class="search-section hidden">
-      <label for="userId">ID del Usuario:</label>
+      <label for="userEmail">Email del Usuario:</label>
       <div style="display:flex;gap:10px;">
-        <input type="text" id="userId" placeholder="Ingrese el ID del usuario (ej: 68220...)" style="flex:1;" />
-        <button onclick="cargarPedidos()" style="white-space:nowrap;">Cargar Pedidos</button>
+        <input type="email" id="userEmail" placeholder="Ingrese el email del usuario" style="flex:1;" />
+        <button onclick="buscarUsuario()" style="white-space:nowrap;">Buscar</button>
       </div>
+      <div id="userNotFound" class="error hidden" style="margin-top:8px;">Usuario no encontrado</div>
     </div>
 
     <div id="statsContainer" class="stats"></div>
@@ -232,8 +233,31 @@
       scheduleRefresh();
     }
 
-    async function cargarPedidos() {
-      const userId = document.getElementById('userId').value.trim();
+    async function buscarUsuario() {
+      const email = document.getElementById('userEmail').value.trim();
+      const notFound = document.getElementById('userNotFound');
+      notFound.classList.add('hidden');
+
+      if (!email) {
+        notFound.textContent = 'Ingrese un email';
+        notFound.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`${API_BASE}/api/admin/users/search?email=${encodeURIComponent(email)}`);
+        if (!res.ok) throw new Error();
+        const user = await res.json();
+        document.getElementById('userEmail').dataset.userId = user._id;
+        await cargarPedidos(user._id);
+      } catch {
+        notFound.textContent = 'Usuario no encontrado';
+        notFound.classList.remove('hidden');
+      }
+    }
+
+    async function cargarPedidos(userId) {
+      userId = userId || document.getElementById('userEmail').dataset.userId;
       const container = document.getElementById('pedidosContainer');
       const statsContainer = document.getElementById('statsContainer');
 

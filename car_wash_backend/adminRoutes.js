@@ -21,5 +21,6 @@ const adminController = require('./controllers/adminController');
  *         description: Se requiere rol de admin
  */
 router.get('/dashboard', verifyToken, requireRole('admin'), adminController.getDashboard);
+router.get('/users/search', verifyToken, requireRole('admin'), adminController.searchUsers);
 
 module.exports = router;
