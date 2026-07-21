@@ -191,4 +191,10 @@ router.get(
   carController.getCarsStats
 );
 
+router.get(
+  '/availability',
+  verifyToken,
+  carController.checkAvailability
+);
+
 module.exports = router;

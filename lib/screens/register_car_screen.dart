@@ -37,6 +37,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   String _selectedWashType = 'B\u00e1sico';
   DateTime _scheduledDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _scheduledTime = const TimeOfDay(hour: 9, minute: 0);
+  int _availableSlots = 5;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -44,6 +45,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   void initState() {
     super.initState();
     _amountController.text = _washPrices[_selectedWashType]!.toStringAsFixed(0);
+    _checkAvailability(_scheduledDate);
   }
 
   @override
@@ -62,6 +64,23 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
     });
   }
 
+  Future<void> _checkAvailability(DateTime date) async {
+    try {
+      final httpService = HttpService();
+      await httpService.loadToken();
+      final dateStr =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final data = await httpService.get(
+        '${ApiConfig.baseUrl}${ApiConfig.carsAvailability}?date=$dateStr',
+      );
+      if (mounted) {
+        setState(() => _availableSlots = data['available'] as int? ?? 5);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _availableSlots = 5);
+    }
+  }
+
   Future<void> _selectDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -69,7 +88,10 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 60)),
     );
-    if (picked != null) setState(() => _scheduledDate = picked);
+    if (picked != null) {
+      setState(() => _scheduledDate = picked);
+      _checkAvailability(picked);
+    }
   }
 
   Future<void> _selectTime() async {
@@ -87,6 +109,11 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
+
+    if (_availableSlots <= 0) {
+      _setError('No hay cupos disponibles para esta fecha');
+      return;
+    }
 
     try {
       final plate = _plateController.text.trim().toUpperCase();
@@ -310,11 +337,15 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
       _scheduledTime.hour, _scheduledTime.minute,
     );
 
+    final slotsFull = _availableSlots <= 0;
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(
+          color: slotsFull ? AppColors.error : AppColors.border,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),

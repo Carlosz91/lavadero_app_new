@@ -26,6 +26,21 @@ exports.registerCar = async (req, res, next) => {
       throw new NotFoundError('Usuario');
     }
 
+    if (scheduledDate) {
+      const startOfDay = new Date(scheduledDate);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(scheduledDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+
+      const carsOnDate = await Car.countDocuments({
+        scheduledDate: { $gte: startOfDay, $lte: endOfDay },
+      });
+
+      if (carsOnDate >= 5) {
+        throw new ValidationError('Capacidad completa para esta fecha. Elige otro d\u00eda.');
+      }
+    }
+
     const newCar = new Car({
       plate: plate.trim().toUpperCase(),
       model: model.trim(),
@@ -204,6 +219,33 @@ exports.getCarsStats = async (req, res, next) => {
     res.status(200).json({
       message: 'Estadísticas obtenidas exitosamente',
       stats: formattedStats,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.checkAvailability = async (req, res, next) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      throw new ValidationError('Fecha es requerida (YYYY-MM-DD)');
+    }
+
+    const startOfDay = new Date(date);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+
+    const count = await Car.countDocuments({
+      scheduledDate: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    res.status(200).json({
+      date,
+      booked: count,
+      available: Math.max(0, 5 - count),
+      maxPerDay: 5,
     });
   } catch (err) {
     next(err);
