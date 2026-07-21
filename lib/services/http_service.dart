@@ -83,8 +83,12 @@ class HttpService {
           .timeout(ApiConfig.connectionTimeout);
 
       return _handleResponse(response);
+    } on HttpException {
+      rethrow;
+    } on UnauthorizedException {
+      rethrow;
     } catch (e) {
-      throw HttpException('Error en POST: $e');
+      throw HttpException('$e');
     }
   }
 
@@ -103,8 +107,12 @@ class HttpService {
           .timeout(ApiConfig.receiveTimeout);
 
       return _handleResponse(response);
+    } on HttpException {
+      rethrow;
+    } on UnauthorizedException {
+      rethrow;
     } catch (e) {
-      throw HttpException('Error en PUT: $e');
+      throw HttpException('$e');
     }
   }
 
