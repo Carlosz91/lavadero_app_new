@@ -24,10 +24,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
-  List<Map<String, dynamic>> _payments = [];
-  String? _plate;
-  double _amount = 0.0;
-  double _totalPaid = 0.0;
+  List<Map<String, dynamic>> _pendingPayments = [];
+  double _totalPending = 0.0;
   bool _processingPayment = false;
   String? _userId;
 
@@ -41,7 +39,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     final prefs = await SharedPreferences.getInstance();
     _userId = prefs.getString('userId');
     if (_userId != null) {
-      _fetchPayments();
+      _fetchPendingPayments();
     } else {
       setState(() {
         _isLoading = false;
@@ -51,7 +49,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     }
   }
 
-  Future<void> _fetchPayments({bool silent = false}) async {
+  Future<void> _fetchPendingPayments({bool silent = false}) async {
     if (!silent) {
       setState(() {
         _isLoading = true;
@@ -60,35 +58,26 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     }
 
     try {
-      if (_userId == null) throw Exception('No se encontr\u00f3 userId');
-
-      final payments = await PaymentService.getWashesByStatus(
-        userId: _userId!,
-        status: 'Completado',
-      );
+      final payments = await PaymentService.getPayments(status: 'Pendiente');
 
       setState(() {
-        _plate = payments.isNotEmpty ? payments.first['plate'] : 'N/A';
-
-        _payments = payments.map<Map<String, dynamic>>((p) {
+        _pendingPayments = payments.map<Map<String, dynamic>>((p) {
           final amountDouble = (p['amount'] as num?)?.toDouble() ?? 0.0;
-          final method = p['method'] as String? ?? 'Desconocido';
+          final method = p['method'] as String? ?? 'Otro';
           return {
             'id': p['_id'] ?? '',
+            'plate': p['plate'] ?? 'N/A',
             'amount': 'Gs. ${amountDouble.toStringAsFixed(0)}',
             'amountDouble': amountDouble,
             'method': method,
             'status': p['status'] ?? 'Pendiente',
             'date': p['date'] ?? '',
-            'icon': _getMethodIcon(method),
-            'color': _getMethodColor(method),
+            'carId': p['carId'] ?? '',
           };
         }).toList();
 
-        _totalPaid =
-            _payments.fold(0.0, (sum, p) => sum + (p['amountDouble'] as double));
-        _amount =
-            _payments.isNotEmpty ? _payments.first['amountDouble'] : 0.0;
+        _totalPending =
+            _pendingPayments.fold(0.0, (sum, p) => sum + (p['amountDouble'] as double));
 
         _isLoading = false;
       });
@@ -101,7 +90,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     }
   }
 
-  Future<void> _payWithStripe() async {
+  Future<void> _payWithStripe(Map<String, dynamic> payment) async {
     setState(() => _processingPayment = true);
 
     try {
@@ -111,9 +100,9 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       final response = await httpService.post(
         '${ApiConfig.baseUrl}/api/stripe/create-checkout-session',
         {
-          'plate': _plate != 'N/A' ? _plate : 'N/D',
-          'amount': _amount,
-          'description': 'Lavado de veh\u00edculo ${_plate ?? 'N/D'}',
+          'paymentId': payment['id'],
+          'plate': payment['plate'],
+          'amount': payment['amountDouble'],
         },
       );
 
@@ -133,52 +122,22 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     }
   }
 
-  Future<void> _processPayment(String method) async {
+  Future<void> _processPayment(Map<String, dynamic> payment, String method) async {
     setState(() => _processingPayment = true);
 
     try {
-      await PaymentService.createPayment(
-        plate: _plate != 'N/A' ? _plate! : 'N/D',
+      await PaymentService.updatePaymentStatus(
+        payment['id'],
+        'Pagado',
         method: method,
-        amount: _amount,
       );
 
       _showSnackBar('Pago con $method registrado exitosamente', success: true);
-      await _fetchPayments(silent: true);
+      await _fetchPendingPayments(silent: true);
     } catch (e) {
       _showSnackBar('Error en el pago: $e', success: false);
     } finally {
       setState(() => _processingPayment = false);
-    }
-  }
-
-  IconData _getMethodIcon(String method) {
-    switch (method) {
-      case 'Tarjeta de Cr\u00e9dito':
-        return Icons.credit_card;
-      case 'Efectivo':
-        return Icons.attach_money;
-      case 'Transferencia':
-        return Icons.account_balance;
-      case 'Mercado Pago':
-        return Icons.payment;
-      default:
-        return Icons.payment;
-    }
-  }
-
-  Color _getMethodColor(String method) {
-    switch (method) {
-      case 'Tarjeta de Cr\u00e9dito':
-        return AppColors.primary;
-      case 'Efectivo':
-        return AppColors.success;
-      case 'Transferencia':
-        return Colors.purple;
-      case 'Mercado Pago':
-        return AppColors.warning;
-      default:
-        return AppColors.textHint;
     }
   }
 
@@ -198,16 +157,8 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
       body: _processingPayment || _isLoading
           ? const LoadingState(message: 'Procesando...')
           : _hasError
-              ? ErrorState(message: _errorMessage, onRetry: _fetchPayments)
+              ? ErrorState(message: _errorMessage, onRetry: _fetchPendingPayments)
               : _buildContent(),
-      floatingActionButton: !_processingPayment && !_isLoading && !_hasError
-          ? FloatingActionButton.extended(
-              onPressed: _showPaymentOptions,
-              icon: const Icon(Icons.payment),
-              label: const Text('Pagar'),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -221,7 +172,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
               children: [
                 _buildStatsCard(),
                 const SizedBox(height: 20),
-                _buildPaymentHistory(),
+                _buildPendingList(),
                 const SizedBox(height: 80),
               ],
             ),
@@ -275,7 +226,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Gestiona tus pagos',
+                  'Pagos pendientes',
                   style: TextStyle(fontSize: 13, color: Colors.white70),
                 ),
               ],
@@ -297,27 +248,36 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
           border: Border.all(color: AppColors.border),
         ),
         padding: const EdgeInsets.all(20),
-        child: Column(
+        child: Row(
           children: [
-            _buildStatItem(
-              icon: Icons.directions_car,
-              label: 'Veh\u00edculo',
-              value: _plate ?? 'N/A',
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.pending_actions, color: AppColors.warning, size: 32),
             ),
-            const Divider(height: 32),
-            _buildStatItem(
-              icon: Icons.attach_money,
-              label: 'Monto a pagar',
-              value:
-                  _plate != 'N/A' ? 'Gs. ${_amount.toStringAsFixed(0)}' : 'N/A',
-              valueColor: AppColors.error,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total pendiente',
+                    style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Gs. ${_totalPending.toStringAsFixed(0)}',
+                    style: AppTextStyles.h2.copyWith(color: AppColors.error),
+                  ),
+                ],
+              ),
             ),
-            const Divider(height: 32),
-            _buildStatItem(
-              icon: Icons.check_circle,
-              label: 'Total pagado',
-              value: 'Gs. ${_totalPaid.toStringAsFixed(0)}',
-              valueColor: AppColors.success,
+            Text(
+              '${_pendingPayments.length} pago${_pendingPayments.length == 1 ? '' : 's'}',
+              style: AppTextStyles.body.copyWith(color: AppColors.textHint),
             ),
           ],
         ),
@@ -325,36 +285,12 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
-  Widget _buildStatItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    Color valueColor = AppColors.textPrimary,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.primary),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(label, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w500)),
-        ),
-        Text(
-          value,
-          style: AppTextStyles.body.copyWith(
-            fontWeight: FontWeight.bold,
-            color: valueColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPaymentHistory() {
-    if (_payments.isEmpty) {
+  Widget _buildPendingList() {
+    if (_pendingPayments.isEmpty) {
       return const EmptyState(
-        icon: Icons.history,
-        title: 'No hay historial de pagos',
-        subtitle: 'Realiza tu primer pago para ver el historial',
+        icon: Icons.check_circle_outline,
+        title: 'Sin pagos pendientes',
+        subtitle: 'No tenés deudas pendientes',
       );
     }
 
@@ -364,20 +300,16 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Historial de Pagos',
+            'Pagos pendientes',
             style: AppTextStyles.h3,
           ),
           const SizedBox(height: 12),
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: _payments.length,
+            itemCount: _pendingPayments.length,
             itemBuilder: (context, index) {
-              final payment = _payments[index];
-              final statusColor = payment['status'] == 'Completado'
-                  ? AppColors.success
-                  : AppColors.warning;
-
+              final payment = _pendingPayments[index];
               return Card(
                 elevation: 0,
                 margin: const EdgeInsets.symmetric(vertical: 6),
@@ -385,45 +317,90 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   borderRadius: BorderRadius.circular(12),
                   side: const BorderSide(color: AppColors.border),
                 ),
-                child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  leading: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: (payment['color'] as Color).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      payment['icon'],
-                      color: payment['color'],
-                      size: 24,
-                    ),
-                  ),
-                  title: Text(
-                    payment['amount'],
-                    style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    '${payment['method']} \u2022 ${payment['date']}',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      payment['status'],
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.directions_car, color: AppColors.warning, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  payment['plate'],
+                                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  payment['amount'],
+                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                            ),
+                            child: const Text(
+                              'Pendiente',
+                              style: TextStyle(
+                                color: AppColors.warning,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.payment, size: 18),
+                              label: const Text('Pagado'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.success,
+                                side: const BorderSide(color: AppColors.success),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () => _showPaymentOptions(payment),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.credit_card, size: 18),
+                              label: const Text('Stripe'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF635BFF),
+                                side: const BorderSide(color: Color(0xFF635BFF)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () => _payWithStripe(payment),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -434,7 +411,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
     );
   }
 
-  void _showPaymentOptions() {
+  void _showPaymentOptions(Map<String, dynamic> payment) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -448,17 +425,27 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Seleccionar m\u00e9todo de pago',
+                'Seleccionar método de pago',
                 style: AppTextStyles.h3.copyWith(color: AppColors.primary),
               ),
               const SizedBox(height: 20),
               _paymentOptionButton(
-                title: 'Tarjeta de Cr\u00e9dito/D\u00e9bito',
+                title: 'Efectivo',
+                icon: Icons.attach_money,
+                color: AppColors.success,
+                onTap: () {
+                  Navigator.pop(context);
+                  _processPayment(payment, 'Efectivo');
+                },
+              ),
+              const SizedBox(height: 12),
+              _paymentOptionButton(
+                title: 'Tarjeta de Crédito/Débito',
                 icon: Icons.credit_card,
                 color: AppColors.primary,
                 onTap: () {
                   Navigator.pop(context);
-                  _processPayment('Tarjeta de Cr\u00e9dito');
+                  _processPayment(payment, 'Tarjeta');
                 },
               ),
               const SizedBox(height: 12),
@@ -468,17 +455,17 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 color: Colors.purple,
                 onTap: () {
                   Navigator.pop(context);
-                  _processPayment('Transferencia');
+                  _processPayment(payment, 'Transferencia');
                 },
               ),
               const SizedBox(height: 12),
               _paymentOptionButton(
-                title: 'Stripe (Tarjeta)',
-                icon: Icons.credit_card,
-                color: const Color(0xFF635BFF),
+                title: 'Mercado Pago',
+                icon: Icons.payment,
+                color: const Color(0xFF00B1EA),
                 onTap: () {
                   Navigator.pop(context);
-                  _payWithStripe();
+                  _processPayment(payment, 'Mercado Pago');
                 },
               ),
               const SizedBox(height: 12),

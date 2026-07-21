@@ -111,9 +111,10 @@ describe('GET /api/payments/user/:userId', () => {
       .post('/api/auth/register')
       .send({ name: 'Other', email: email2, password: 'TestPass1!' });
 
+    // user2 es 'user' (no admin), intenta acceder a pagos de user1
     await request(app)
-      .get(`/api/payments/user/${regRes2.body.userId}`)
-      .set('Authorization', `Bearer ${token}`)
+      .get(`/api/payments/user/${userId}`)
+      .set('Authorization', `Bearer ${regRes2.body.token}`)
       .expect(403);
   });
 });

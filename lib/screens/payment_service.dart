@@ -83,16 +83,17 @@ class PaymentService {
     }
   }
 
-  /// ✅ Actualiza el estado de un pago
+  /// ✅ Actualiza el estado (y opcionalmente el método) de un pago
   static Future<Map<String, dynamic>> updatePaymentStatus(
     String id,
-    String status,
-  ) async {
+    String status, {
+    String? method,
+  }) async {
     try {
       await _httpService.loadToken();
       final body = {"status": status};
+      if (method != null) body["method"] = method;
 
-      // ✅ Usar HttpService en lugar de http directo
       final data = await _httpService.put(
         '$_paymentsEndpoint/$id',
         body,

@@ -116,6 +116,24 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
     }
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+
+      if (userId == null || userId.isEmpty) {
+        throw Exception('No se encontr\u00f3 el usuario. Inicia sesi\u00f3n nuevamente.');
+      }
+
+      final httpService = HttpService();
+      await httpService.loadToken();
+
+      final pendingData = await httpService.get(
+        '${ApiConfig.baseUrl}/api/payments?status=Pendiente',
+      );
+      final pendingList = (pendingData['data'] as List?) ?? [];
+      if (pendingList.isNotEmpty) {
+        throw Exception('Tenés un pago pendiente. Pagalo antes de registrar otro vehículo.');
+      }
+
       final plate = _plateController.text.trim().toUpperCase();
       final model = _modelController.text.trim();
       final brand = _brandController.text.trim();
@@ -124,20 +142,11 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
 
       if (amount <= 0) throw Exception('El monto debe ser mayor a cero');
 
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId');
-
-      if (userId == null || userId.isEmpty) {
-        throw Exception('No se encontr\u00f3 el usuario. Inicia sesi\u00f3n nuevamente.');
-      }
-
       final scheduledDateStr =
           '${_scheduledDate.year}-${_scheduledDate.month.toString().padLeft(2, '0')}-${_scheduledDate.day.toString().padLeft(2, '0')}';
       final scheduledTimeStr =
           '${_scheduledTime.hour.toString().padLeft(2, '0')}:${_scheduledTime.minute.toString().padLeft(2, '0')}';
 
-      final httpService = HttpService();
-      await httpService.loadToken();
       final response = await httpService.post(
         '${ApiConfig.baseUrl}${ApiConfig.carsRegister}',
         {

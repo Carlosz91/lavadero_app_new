@@ -44,13 +44,18 @@ exports.createPayment = async (req, res, next) => {
 exports.getPaymentsAuthenticated = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { status } = req.query;
+    const filter = { userId };
+    if (status && ['Pendiente', 'Pagado', 'Cancelado', 'Reembolsado'].includes(status)) {
+      filter.status = status;
+    }
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
     const skip = (page - 1) * limit;
 
     const [payments, total] = await Promise.all([
-      Payment.find({ userId }).sort({ date: -1 }).skip(skip).limit(limit),
-      Payment.countDocuments({ userId }),
+      Payment.find(filter).sort({ date: -1 }).skip(skip).limit(limit),
+      Payment.countDocuments(filter),
     ]);
 
     res.status(200).json({
@@ -101,7 +106,7 @@ exports.getPaymentsByUserId = async (req, res, next) => {
 exports.updatePaymentStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, method } = req.body;
 
     if (!status) {
       throw new ValidationError('El estado es requerido');
@@ -111,9 +116,17 @@ exports.updatePaymentStatus = async (req, res, next) => {
       throw new ValidationError(`Estado inválido. Válidos: ${VALID_STATUSES.join(', ')}`);
     }
 
+    const updateData = { status };
+    if (method) {
+      if (!VALID_METHODS.includes(method)) {
+        throw new ValidationError(`Método inválido. Válidos: ${VALID_METHODS.join(', ')}`);
+      }
+      updateData.method = method;
+    }
+
     const updatedPayment = await Payment.findByIdAndUpdate(
       id,
-      { status },
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -121,7 +134,7 @@ exports.updatePaymentStatus = async (req, res, next) => {
       throw new NotFoundError('Pago');
     }
 
-    logger.info('Estado de pago actualizado', { paymentId: id, status });
+    logger.info('Pago actualizado', { paymentId: id, status, method: method || 'sin cambio' });
 
     res.status(200).json(updatedPayment);
   } catch (err) {

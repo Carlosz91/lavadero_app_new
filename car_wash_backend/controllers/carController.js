@@ -1,5 +1,6 @@
 const Car = require('../models/carModel');
 const User = require('../models/userModel');
+const Payment = require('../models/paymentModel');
 const logger = require('../utils/logger');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/AppError');
 
@@ -16,6 +17,11 @@ exports.registerCar = async (req, res, next) => {
   try {
     const { plate, model, brand, washType, amount, scheduledDate, scheduledTime } = req.body;
     const userId = req.user.id;
+
+    const pendingPaymentCount = await Payment.countDocuments({ userId, status: 'Pendiente' });
+    if (pendingPaymentCount > 0) {
+      throw new ValidationError('Tenés un pago pendiente. Pagalo antes de registrar otro vehículo.');
+    }
 
     if (!VALID_WASH_TYPES.includes(washType)) {
       throw new ValidationError(`Tipo de lavado inválido. Válidos: ${VALID_WASH_TYPES.join(', ')}`);
@@ -161,6 +167,15 @@ exports.closeCarStatus = async (req, res, next) => {
 
     car.status = 'Completado';
     await car.save();
+
+    await Payment.create({
+      userId: car.userId,
+      plate: car.plate,
+      method: 'Otro',
+      amount: car.amount || 0,
+      status: 'Pendiente',
+      carId: car._id,
+    });
 
     logger.info('Vehículo cerrado como completado', { carId, plate: car.plate });
 

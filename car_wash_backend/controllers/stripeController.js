@@ -7,22 +7,36 @@ const HOST = process.env.STRIPE_REDIRECT_HOST || 'http://10.0.2.2:5000';
 
 exports.createCheckoutSession = async (req, res, next) => {
   try {
-    const { plate, amount, description, carId } = req.body;
+    const { plate, amount, description, carId, paymentId } = req.body;
     const userId = req.user.id;
 
-    if (!plate || !amount || amount <= 0) {
-      throw new ValidationError('Placa y monto son requeridos');
+    let payment;
+    if (paymentId) {
+      payment = await Payment.findById(paymentId);
+      if (!payment) {
+        throw new ValidationError('Pago no encontrado');
+      }
+      if (payment.status !== 'Pendiente') {
+        throw new ValidationError('Este pago ya fue procesado');
+      }
+    } else {
+      if (!plate || !amount || amount <= 0) {
+        throw new ValidationError('Placa y monto son requeridos');
+      }
+
+      payment = new Payment({
+        userId,
+        plate: plate.trim().toUpperCase(),
+        method: 'Stripe',
+        amount,
+        status: 'Pendiente',
+        carId: carId || null,
+      });
+      await payment.save();
     }
 
-    const payment = new Payment({
-      userId,
-      plate: plate.trim().toUpperCase(),
-      method: 'Stripe',
-      amount,
-      status: 'Pendiente',
-      carId: carId || null,
-    });
-    await payment.save();
+    const finalPlate = payment.plate || plate;
+    const finalAmount = payment.amount || amount;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -31,9 +45,9 @@ exports.createCheckoutSession = async (req, res, next) => {
           price_data: {
             currency: 'pyg',
             product_data: {
-              name: description || `Lavado de veh\u00edculo ${plate}`,
+              name: description || `Lavado de veh\u00edculo ${finalPlate}`,
             },
-            unit_amount: Math.round(amount),
+            unit_amount: Math.round(finalAmount),
           },
           quantity: 1,
         },
