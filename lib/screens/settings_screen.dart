@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
 import 'login_screen.dart';
+import 'about_screen.dart';
 
 const kNotificationsKey = 'notifications';
 const kDarkModeKey = 'darkMode';
@@ -243,6 +244,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SnackBar(
                           content: Text('Centro de ayuda no disponible a\u00fan'),
                         ),
+                      );
+                    },
+                  ),
+                  _buildSettingTile(
+                    icon: Icons.info_outline,
+                    title: 'Acerca de',
+                    subtitle: 'Informaci\u00f3n de la aplicaci\u00f3n',
+                    trailing:
+                        const Icon(Icons.chevron_right, color: AppColors.textHint),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AboutScreen()),
                       );
                     },
                   ),
