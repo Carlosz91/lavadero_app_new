@@ -73,6 +73,9 @@ class LoginScreenState extends State<LoginScreen> {
       } on HttpException catch (e) {
         if (!mounted) return;
         setState(() { _errorMessage = e.message; });
+      } on UnauthorizedException catch (e) {
+        if (!mounted) return;
+        setState(() { _errorMessage = e.message; });
       } catch (e) {
         if (!mounted) return;
         setState(() { _errorMessage = 'Error inesperado. Intenta nuevamente.'; });
