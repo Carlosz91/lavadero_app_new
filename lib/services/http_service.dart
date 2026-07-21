@@ -18,8 +18,13 @@ class HttpService {
 
   Function()? onUnauthorized;
 
+  bool _wasAuthenticated = false;
+
+  void markAuthenticated() { _wasAuthenticated = true; }
+
   Future<void> _clearAuth() async {
     _authToken = null;
+    _wasAuthenticated = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('refreshToken');
@@ -31,6 +36,7 @@ class HttpService {
   /// ✅ Setter para guardar token JWT
   void setAuthToken(String token) {
     _authToken = token;
+    _wasAuthenticated = true;
   }
 
   /// ✅ Getter para verificar autenticación
@@ -133,7 +139,9 @@ class HttpService {
 
         case 401:
           await _clearAuth();
-          onUnauthorized?.call();
+          if (_wasAuthenticated) {
+            onUnauthorized?.call();
+          }
           throw UnauthorizedException(
             decoded['error'] ?? 'Sesión expirada',
           );
