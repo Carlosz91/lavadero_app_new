@@ -25,7 +25,7 @@ Aplicación móvil para la gestión de lavaderos de vehículos. Permite registra
 - **Primer usuario** registrado se convierte en `admin` automáticamente
 - **Sistema de diseño** — tema personalizado con colores, tipografía y 9 componentes reutilizables
 - **Animaciones** — fondo con gotas animadas, logo flotante, fade-in escalonado en todas las pantallas
-- **API REST** documentada con Swagger en `http://localhost:5000/api-docs`
+- **API REST** documentada con Swagger en `http://localhost:5000/api/docs`
 - **Seguridad** — JWT, Helmet CSP, rate limiting, sanitize, validación, bloqueo por fuerza bruta
 
 ## Instalación
