@@ -159,8 +159,14 @@
           body: JSON.stringify({ email, password }),
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Credenciales inv\u00e1lidas');
+        let data;
+        try {
+          data = await res.json();
+        } catch {
+          const text = await res.text();
+          throw new Error(text || 'Credenciales inv\u00e1lidas');
+        }
+        if (!res.ok) throw new Error(data.error || data.message || 'Credenciales inv\u00e1lidas');
 
         authToken = data.token;
         userEmail = email;
