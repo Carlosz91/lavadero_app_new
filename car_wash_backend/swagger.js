@@ -12,8 +12,9 @@ const options = {
       },
     },
     servers: [
-      { url: 'http://localhost:5000', description: 'Desarrollo' },
-      { url: 'https://lavaderoappnew-production.up.railway.app', description: 'Producción' },
+      { url: 'http://localhost:5000', description: 'Desarrollo local' },
+      { url: 'https://lavaderoappnew-development.up.railway.app', description: 'Development (Railway)' },
+      { url: 'https://lavaderoappnew-production.up.railway.app', description: 'Producción (Railway)' },
     ],
     components: {
       securitySchemes: {
