@@ -16,7 +16,8 @@ Aplicación móvil para la gestión de lavaderos de vehículos. Permite registra
 - **Registro de vehículos** — cualquier usuario autenticado puede registrar un auto con placa, modelo, marca y tipo de lavado
 - **Agendamiento** — selección de fecha y hora al registrar, con control de capacidad (máximo 5 autos por día)
 - **Estado del lavado** — seguimiento en tiempo real con filtros por estado (Pendiente, En Progreso, Completado, Cancelado)
-- **Gestión de pagos** — registro y consulta de pagos
+- **Gestión de pagos** — registro y consulta de pagos (Efectivo, Tarjeta, Transferencia, Mercado Pago)
+- **Mercado Pago** — integración con checkout de Mercado Pago en modo test (tarjetas de prueba)
 - **Panel admin** — `http://localhost:5000/admin/` (login JWT, solo admin/staff cambia estados)
 - **Roles** — `admin`/`staff` pueden cambiar estados; `user` solo registra, agenda y consulta
 - **Primer usuario** registrado se convierte en `admin` automáticamente

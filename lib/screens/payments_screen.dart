@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
+import '../config/api_config.dart';
+import '../services/http_service.dart';
 import 'payment_service.dart';
 
 class PaymentsScreen extends StatefulWidget {
@@ -95,6 +98,38 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
         _hasError = true;
         _errorMessage = 'Error al cargar pagos: $e';
       });
+    }
+  }
+
+  Future<void> _payWithMercadoPago() async {
+    setState(() => _processingPayment = true);
+
+    try {
+      final httpService = HttpService();
+      await httpService.loadToken();
+
+      final response = await httpService.post(
+        '${ApiConfig.baseUrl}/api/mercadopago/create-preference',
+        {
+          'plate': _plate != 'N/A' ? _plate : 'N/D',
+          'amount': _amount,
+          'description': 'Lavado de veh\u00edculo ${_plate ?? 'N/D'}',
+        },
+      );
+
+      final initPoint = response['initPoint'] as String?;
+      if (initPoint != null) {
+        final uri = Uri.parse(initPoint);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          _showSnackBar('No se pudo abrir Mercado Pago', success: false);
+        }
+      }
+    } catch (e) {
+      _showSnackBar('Error al conectar con Mercado Pago: $e', success: false);
+    } finally {
+      setState(() => _processingPayment = false);
     }
   }
 
@@ -434,6 +469,16 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   _processPayment('Transferencia');
+                },
+              ),
+              const SizedBox(height: 12),
+              _paymentOptionButton(
+                title: 'Mercado Pago',
+                icon: Icons.payment,
+                color: const Color(0xFF00B1EA),
+                onTap: () {
+                  Navigator.pop(context);
+                  _payWithMercadoPago();
                 },
               ),
               const SizedBox(height: 12),
