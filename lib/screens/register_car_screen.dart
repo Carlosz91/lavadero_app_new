@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:math';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
@@ -29,6 +30,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   int _availableSlots = 5;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _idempotencyKey;
 
   final List<Color> _colorOptions = [
     const Color(0xFF1A237E),
@@ -102,10 +104,18 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
     setState(() => _currentStep++);
   }
 
+  String _generateIdempotencyKey() {
+    final random = Random();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${timestamp}-${random.nextInt(999999)}-${random.nextInt(999999)}';
+  }
+
   Future<void> _registerCar() async {
     setState(() { _isLoading = true; _errorMessage = null; });
 
     if (_availableSlots <= 0) { _setError('No hay cupos disponibles para esta fecha'); return; }
+
+    _idempotencyKey ??= _generateIdempotencyKey();
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -128,7 +138,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
         'scheduledDate': '${_scheduledDate.year}-${_scheduledDate.month.toString().padLeft(2, '0')}-${_scheduledDate.day.toString().padLeft(2, '0')}',
         'scheduledTime': '${_scheduledTime.hour.toString().padLeft(2, '0')}:${_scheduledTime.minute.toString().padLeft(2, '0')}',
         'userId': userId,
-      });
+      }, idempotencyKey: _idempotencyKey);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vehículo registrado'), backgroundColor: AppColors.success));

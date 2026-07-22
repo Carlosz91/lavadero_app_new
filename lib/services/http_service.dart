@@ -74,16 +74,21 @@ class HttpService {
     }
   }
 
-  /// ✅ POST request
+  /// ✅ POST request con soporte de idempotencia
   Future<Map<String, dynamic>> post(
     String url,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    String? idempotencyKey,
+  }) async {
     try {
+      final headers = _getHeaders();
+      if (idempotencyKey != null) {
+        headers['Idempotency-Key'] = idempotencyKey;
+      }
       final response = await http
           .post(
             Uri.parse(url),
-            headers: _getHeaders(),
+            headers: headers,
             body: json.encode(body),
           )
           .timeout(ApiConfig.connectionTimeout);

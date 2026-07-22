@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const carController = require('../controllers/carController');
 const verifyToken = require('../middlewares/verifyToken');
+const idempotencyMiddleware = require('../middlewares/idempotencyMiddleware');
 const {
   handleValidationErrors,
   validateCarRegister,
@@ -24,6 +25,8 @@ const {
  *     tags: [Cars]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/idempotencyKey'
  *     requestBody:
  *       required: true
  *       content:
@@ -34,15 +37,26 @@ const {
  *             properties:
  *               plate:
  *                 type: string
+ *                 example: ABC-1234
  *               brand:
  *                 type: string
+ *                 example: Toyota
  *               model:
  *                 type: string
+ *                 example: Corolla
  *               washType:
  *                 type: string
- *                 enum: [Básico, Premium, Completo, Detailing]
+ *                 enum: [Básico, Premium, Premium Plus, Completo, Detailing, Full Package]
  *               amount:
  *                 type: number
+ *                 example: 150000
+ *               scheduledDate:
+ *                 type: string
+ *                 format: date
+ *                 example: 2026-07-23
+ *               scheduledTime:
+ *                 type: string
+ *                 example: 09:00
  *     responses:
  *       201:
  *         description: Vehículo registrado exitosamente
@@ -50,10 +64,13 @@ const {
  *         description: Datos inválidos
  *       401:
  *         description: No autorizado
+ *       409:
+ *         description: Solicitud duplicada (misma Idempotency-Key)
  */
 router.post(
   '/registercar',
   verifyToken,
+  idempotencyMiddleware,
   validateCarRegister,
   handleValidationErrors,
   carController.registerCar
@@ -191,6 +208,39 @@ router.get(
   carController.getCarsStats
 );
 
+/**
+ * @swagger
+ * /api/cars/availability:
+ *   get:
+ *     summary: Verificar disponibilidad de cupos para una fecha
+ *     tags: [Cars]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         required: true
+ *         description: Fecha a consultar (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Disponibilidad
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 date:
+ *                   type: string
+ *                 availableSlots:
+ *                   type: integer
+ *                 maxSlots:
+ *                   type: integer
+ *       400:
+ *         description: Fecha inválida
+ */
 router.get(
   '/availability',
   verifyToken,

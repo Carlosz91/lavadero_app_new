@@ -24,6 +24,15 @@ const options = {
           bearerFormat: 'JWT',
         },
       },
+      parameters: {
+        idempotencyKey: {
+          in: 'header',
+          name: 'Idempotency-Key',
+          schema: { type: 'string' },
+          required: true,
+          description: 'UUID único para evitar duplicados en POST',
+        },
+      },
       schemas: {
         User: {
           type: 'object',
@@ -41,7 +50,7 @@ const options = {
             plate: { type: 'string', example: 'ABC-1234' },
             model: { type: 'string', example: 'Corolla' },
             brand: { type: 'string', example: 'Toyota' },
-            washType: { type: 'string', enum: ['Básico', 'Premium', 'Completo', 'Detailing'] },
+            washType: { type: 'string', enum: ['Básico', 'Premium', 'Premium Plus', 'Completo', 'Detailing', 'Full Package'] },
             amount: { type: 'number', example: 150.00 },
             status: { type: 'string', enum: ['Pendiente', 'En Progreso', 'Completado', 'Cancelado'] },
             userId: { type: 'string' },
@@ -55,7 +64,7 @@ const options = {
             _id: { type: 'string' },
             userId: { type: 'string' },
             plate: { type: 'string', example: 'ABC-1234' },
-            method: { type: 'string', enum: ['Efectivo', 'Tarjeta', 'Transferencia', 'Otro'] },
+            method: { type: 'string', enum: ['Efectivo', 'Tarjeta', 'Transferencia', 'Mercado Pago', 'Stripe', 'Otro'] },
             amount: { type: 'number', example: 150.00 },
             status: { type: 'string', enum: ['Pendiente', 'Pagado', 'Cancelado', 'Reembolsado'] },
             date: { type: 'string', format: 'date-time' },

@@ -85,13 +85,86 @@ router.post(
   authController.loginUser
 );
 
-// ✅ Endpoint para login con Google
+/**
+ * @swagger
+ * /api/auth/google:
+ *   post:
+ *     summary: Iniciar sesión con Google
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [idToken]
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: Token de ID de Google
+ *     responses:
+ *       200:
+ *         description: Login exitoso, devuelve token JWT
+ *       400:
+ *         description: Token inválido
+ */
 router.post('/google', authController.googleLogin);
 
-// ✅ Endpoint para refresh token
+/**
+ * @swagger
+ * /api/auth/refresh:
+ *   post:
+ *     summary: Renovar token JWT
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token]
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Token JWT actual o refresh token
+ *     responses:
+ *       200:
+ *         description: Token renovado exitosamente
+ *       401:
+ *         description: Token inválido o expirado
+ */
 router.post('/refresh', authController.refreshToken);
 
-// ✅ Endpoint para cambiar contraseña
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   put:
+ *     summary: Cambiar contraseña
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Contraseña cambiada exitosamente
+ *       400:
+ *         description: Contraseña actual incorrecta o nueva inválida
+ *       401:
+ *         description: No autorizado
+ */
 router.put(
   '/change-password',
   verifyToken, // Requiere autenticación

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
 const verifyToken = require('../middlewares/verifyToken');
+const idempotencyMiddleware = require('../middlewares/idempotencyMiddleware');
 const {
   handleValidationErrors,
   validatePaymentCreate,
@@ -23,6 +24,8 @@ const {
  *     tags: [Payments]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - $ref: '#/components/parameters/idempotencyKey'
  *     requestBody:
  *       required: true
  *       content:
@@ -33,11 +36,13 @@ const {
  *             properties:
  *               plate:
  *                 type: string
+ *                 example: ABC-1234
  *               method:
  *                 type: string
- *                 enum: [Efectivo, Tarjeta, Transferencia, Otro]
+ *                 enum: [Efectivo, Tarjeta, Transferencia, Mercado Pago, Stripe, Otro]
  *               amount:
  *                 type: number
+ *                 example: 150000
  *               carId:
  *                 type: string
  *     responses:
@@ -47,10 +52,13 @@ const {
  *         description: Datos inválidos
  *       401:
  *         description: No autorizado
+ *       409:
+ *         description: Solicitud duplicada (misma Idempotency-Key)
  */
 router.post(
   '/',
   verifyToken,
+  idempotencyMiddleware,
   validatePaymentCreate,
   handleValidationErrors,
   paymentController.createPayment
