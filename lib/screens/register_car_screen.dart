@@ -353,36 +353,39 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(service.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: isSelected ? AppColors.primary : AppColors.textPrimary)),
+                        Flexible(
+                          child: Text(service.name, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: isSelected ? AppColors.primary : AppColors.textPrimary), overflow: TextOverflow.ellipsis),
+                        ),
                         if (service.badge != null) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                             decoration: BoxDecoration(
                               color: service.badge == 'Popular' ? Colors.orange.shade50 : AppColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Text(service.badge!, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: service.badge == 'Popular' ? Colors.orange.shade700 : AppColors.primary)),
+                            child: Text(service.badge!, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: service.badge == 'Popular' ? Colors.orange.shade700 : AppColors.primary)),
                           ),
                         ],
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(service.description, style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    Text(service.description, style: TextStyle(fontSize: 11, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Text('Gs. ${service.price.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelected ? AppColors.primary : AppColors.textPrimary)),
+              const SizedBox(width: 6),
+              Text('Gs. ${service.price.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isSelected ? AppColors.primary : AppColors.textPrimary)),
               if (isSelected) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(3),
                   decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                  child: const Icon(Icons.check_circle, color: Colors.white, size: 16),
+                  child: const Icon(Icons.check, color: Colors.white, size: 12),
                 ),
               ],
             ],
