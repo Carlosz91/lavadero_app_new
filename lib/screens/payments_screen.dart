@@ -156,6 +156,7 @@ class _PaymentsScreenState extends State<PaymentsScreen>
       await PaymentService.updatePaymentStatus(payment['id'], 'Pagado', method: method);
       _showSnackBar('Pago con $method registrado exitosamente', success: true);
       await _fetchAll(silent: true);
+      _tabController.animateTo(1);
     } catch (e) {
       _showSnackBar('Error en el pago: $e', success: false);
     } finally {
@@ -451,11 +452,42 @@ class _PaymentsScreenState extends State<PaymentsScreen>
     );
   }
 
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'Pagado': return AppColors.success;
+      case 'Pendiente': return AppColors.warning;
+      case 'Cancelado': return AppColors.error;
+      case 'Reembolsado': return Colors.purple;
+      default: return AppColors.textHint;
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'Pagado': return Icons.check_circle;
+      case 'Pendiente': return Icons.pending_actions;
+      case 'Cancelado': return Icons.cancel;
+      case 'Reembolsado': return Icons.replay;
+      default: return Icons.help_outline;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'Pagado': return 'Pagado';
+      case 'Pendiente': return 'Pendiente';
+      case 'Cancelado': return 'Cancelado';
+      case 'Reembolsado': return 'Reembolsado';
+      default: return status;
+    }
+  }
+
   Widget _buildPaymentCard(Map<String, dynamic> payment, {required bool isPending}) {
     final status = payment['status'] as String;
     final method = payment['method'] as String;
     final methodColor = _getMethodColor(method);
-    final isPaid = status == 'Pagado';
+    final statusColor = _statusColor(status);
+    final isActivePending = isPending && status == 'Pendiente';
 
     return Card(
       elevation: 0,
@@ -463,16 +495,10 @@ class _PaymentsScreenState extends State<PaymentsScreen>
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
-          color: isPending ? AppColors.warning.withValues(alpha: 0.3) : AppColors.border,
+          color: status == 'Pendiente' ? AppColors.warning.withValues(alpha: 0.3) : AppColors.border,
         ),
       ),
       child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: isPending
-              ? Border.all(color: AppColors.warning.withValues(alpha: 0.3))
-              : null,
-        ),
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
@@ -482,12 +508,12 @@ class _PaymentsScreenState extends State<PaymentsScreen>
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: (isPending ? AppColors.warning : methodColor).withValues(alpha: 0.1),
+                    color: (isActivePending ? AppColors.warning : methodColor).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    isPending ? Icons.pending_actions : _getMethodIcon(method),
-                    color: isPending ? AppColors.warning : methodColor,
+                    isActivePending ? Icons.pending_actions : _getMethodIcon(method),
+                    color: isActivePending ? AppColors.warning : methodColor,
                     size: 22,
                   ),
                 ),
@@ -511,15 +537,13 @@ class _PaymentsScreenState extends State<PaymentsScreen>
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: isPaid
-                        ? AppColors.success.withValues(alpha: 0.1)
-                        : AppColors.warning.withValues(alpha: 0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    isPaid ? 'Pagado' : 'Pendiente',
+                    _statusLabel(status),
                     style: TextStyle(
-                      color: isPaid ? AppColors.success : AppColors.warning,
+                      color: statusColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -527,7 +551,7 @@ class _PaymentsScreenState extends State<PaymentsScreen>
                 ),
               ],
             ),
-            if (isPending) ...[
+            if (isActivePending) ...[
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -565,22 +589,29 @@ class _PaymentsScreenState extends State<PaymentsScreen>
                 ],
               ),
             ],
-            if (!isPending) ...[
+            if (!isActivePending) ...[
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(Icons.calendar_today, size: 14, color: AppColors.textHint),
+                  Icon(_statusIcon(status), size: 14, color: statusColor),
                   const SizedBox(width: 6),
+                  Text(
+                    _statusLabel(status),
+                    style: AppTextStyles.caption.copyWith(color: statusColor, fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.calendar_today, size: 13, color: AppColors.textHint),
+                  const SizedBox(width: 4),
                   Text(
                     _formatDate(payment['date']),
                     style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 12),
                   Text(
                     payment['amount'],
                     style: AppTextStyles.body.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: isPaid ? AppColors.success : AppColors.error,
+                      color: statusColor,
                     ),
                   ),
                 ],
