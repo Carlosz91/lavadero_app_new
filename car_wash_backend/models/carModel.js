@@ -7,7 +7,7 @@ const carSchema = new mongoose.Schema({
   washType: {
     type: String,
     required: true,
-    enum: ['Básico', 'Premium', 'Completo', 'Detailing'],
+    enum: ['Básico', 'Premium', 'Premium Plus', 'Completo', 'Detailing', 'Full Package'],
   },
   amount: { type: Number, required: true, min: 0 },
   scheduledDate: { type: Date },
