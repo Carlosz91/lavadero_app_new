@@ -18,7 +18,7 @@ exports.getDashboard = async (req, res, next) => {
       Car.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
       Payment.countDocuments(),
       Payment.aggregate([{ $group: { _id: '$status', count: { $sum: 1 }, total: { $sum: '$amount' } } }]),
-      Car.find().sort({ createdAt: -1 }).limit(5).select('plate brand model status amount createdAt'),
+      Car.find().sort({ createdAt: -1 }).limit(5).select('plate brand model status amount createdAt userId').populate('userId', 'email'),
     ]);
 
     const statusMap = { Pendiente: 0, 'En Progreso': 0, Completado: 0, Cancelado: 0 };

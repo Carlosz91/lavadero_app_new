@@ -554,11 +554,14 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
         const SizedBox(width: 16),
         Expanded(
           flex: 2,
-          child: GradientButton(
-            label: _isLoading ? 'Registrando...' : 'Confirmar Registro',
-            icon: Icons.check,
-            isLoading: _isLoading,
-            onPressed: _isLoading ? null : _registerCar,
+          child: Opacity(
+            opacity: _availableSlots <= 0 ? 0.4 : 1.0,
+            child: GradientButton(
+              label: _isLoading ? 'Registrando...' : 'Confirmar Registro',
+              icon: Icons.check,
+              isLoading: _isLoading,
+              onPressed: (_isLoading || _availableSlots <= 0) ? null : _registerCar,
+            ),
           ),
         ),
       ],
