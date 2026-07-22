@@ -9,6 +9,8 @@ if (!process.env.JWT_SECRET) {
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+
 const generateToken = (userId, role = 'user') => {
   return jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: '1h' });
 };
@@ -170,6 +172,10 @@ exports.googleLogin = async (req, res, next) => {
 
     if (!response.ok || data.error) {
       throw new UnauthorizedError('Token de Google inválido');
+    }
+
+    if (GOOGLE_CLIENT_ID && data.aud !== GOOGLE_CLIENT_ID) {
+      throw new UnauthorizedError('Token de Google no emitido para esta aplicación');
     }
 
     const googleId = data.sub;
