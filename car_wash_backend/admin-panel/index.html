@@ -3,424 +3,894 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin - Gestión de Lavados</title>
+  <title>Admin - Lavadero App</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; min-height: 100vh; margin: 0; }
-    .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-    h2 { text-align: center; color: #333; margin-bottom: 30px; font-size: 28px; }
-    .login-form { max-width: 400px; margin: 0 auto 30px; padding: 20px; background: #f8f9fa; border-radius: 10px; }
-    .login-form.hidden { display: none; }
-    .login-form input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; margin-bottom: 12px; box-sizing: border-box; }
-    .login-form input:focus { outline: none; border-color: #007bff; }
-    button { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 12px 24px; font-size: 16px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; margin: 5px; }
-    button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,123,255,0.3); }
-    .btn-danger { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
-    .btn-warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color: #212529; }
-    .btn-success { background: linear-gradient(135deg, #28a745 0%, #218838 100%); }
-    .btn-secondary { background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); }
-    .search-section { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
-    .search-section.hidden { display: none; }
-    label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
-    input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border-color 0.3s ease; box-sizing: border-box; }
-    input:focus { outline: none; border-color: #007bff; }
-    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin: 15px 0; border-left: 5px solid; transition: transform 0.2s ease; }
-    .card:hover { transform: translateY(-2px); }
-    .completado { border-left-color: #28a745; background: linear-gradient(135deg, #f8fff9 0%, #e8f5e9 100%); }
-    .en-progreso { border-left-color: #007bff; background: linear-gradient(135deg, #f0f8ff 0%, #e3f2fd 100%); }
-    .pendiente { border-left-color: #dc3545; background: linear-gradient(135deg, #fff5f5 0%, #ffebee 100%); }
-    .estado { font-weight: bold; padding: 6px 12px; border-radius: 20px; display: inline-block; font-size: 14px; }
-    .estado.completado { background: #28a745; color: white; }
-    .estado.en-progreso { background: #007bff; color: white; }
-    .estado.pendiente { background: #dc3545; color: white; }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .card-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
-    .card-info { display: flex; flex-direction: column; }
-    .card-info strong { color: #666; font-size: 14px; margin-bottom: 4px; }
-    .card-actions { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
-    .loading { text-align: center; padding: 40px; color: #666; }
-    .error { color: #dc3545; text-align: center; padding: 20px; background: #ffebee; border-radius: 8px; margin: 10px 0; }
-    .success { color: #28a745; text-align: center; padding: 20px; background: #e8f5e9; border-radius: 8px; margin: 10px 0; }
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
-    .stat-card { background: white; padding: 15px; border-radius: 10px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .stat-number { font-size: 24px; font-weight: bold; margin: 10px 0; }
-    .stat-pendiente { color: #dc3545; }
-    .stat-progreso { color: #007bff; }
-    .stat-completado { color: #28a745; }
-    .user-info { text-align: right; margin-bottom: 20px; padding: 10px; background: #e8f5e9; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .user-info.hidden { display: none; }
-    @media (max-width: 768px) {
-      .container { padding: 15px; }
-      .card-body { grid-template-columns: 1fr; }
-      .card-actions { flex-direction: column; }
-      button { width: 100%; margin: 5px 0; }
+    :root {
+      --primary: #0d6efd;
+      --primary-dark: #0a58ca;
+      --success: #198754;
+      --warning: #ffc107;
+      --danger: #dc3545;
+      --info: #0dcaf0;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-300: #cbd5e1;
+      --gray-400: #94a3b8;
+      --gray-500: #64748b;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --gray-900: #0f172a;
+      --sidebar-w: 250px;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+      --shadow-lg: 0 10px 25px rgba(0,0,0,.1);
     }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter','Segoe UI',sans-serif; background: var(--gray-50); color: var(--gray-800); min-height: 100vh; }
+
+    /* --- LOGIN SCREEN --- */
+    #loginScreen {
+      position: fixed; inset: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0d6efd 100%);
+    }
+    #loginScreen.hidden { display: none; }
+    .login-card {
+      background: white; border-radius: 20px; padding: 48px 40px 40px;
+      width: 420px; max-width: 92vw;
+      box-shadow: 0 25px 60px rgba(0,0,0,.3);
+      animation: fadeUp .5s ease;
+    }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    .login-icon {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: linear-gradient(135deg, #0d6efd, #6610f2);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px; font-size: 32px; color: white;
+      box-shadow: 0 8px 24px rgba(13,110,253,.35);
+    }
+    .login-card h1 { text-align: center; font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .login-card p { text-align: center; color: var(--gray-500); font-size: 14px; margin-bottom: 28px; }
+    .login-card label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 6px; }
+    .login-card .input-group {
+      position: relative; margin-bottom: 18px;
+    }
+    .login-card .input-group i {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--gray-400); font-size: 16px;
+    }
+    .login-card .input-group input {
+      width: 100%; padding: 12px 14px 12px 42px;
+      border: 2px solid var(--gray-200); border-radius: 10px;
+      font-size: 15px; transition: .2s; background: var(--gray-50);
+    }
+    .login-card .input-group input:focus {
+      outline: none; border-color: var(--primary); background: white;
+      box-shadow: 0 0 0 4px rgba(13,110,253,.1);
+    }
+    .login-card .btn-primary {
+      width: 100%; padding: 13px; font-size: 16px; font-weight: 600;
+      border: none; border-radius: 10px; cursor: pointer;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white; transition: .2s;
+    }
+    .login-card .btn-primary:hover {
+      transform: translateY(-1px); box-shadow: 0 6px 20px rgba(13,110,253,.35);
+    }
+    #loginError {
+      background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+      padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;
+      display: none;
+    }
+    #loginError.show { display: block; }
+
+    /* --- LAYOUT (logged in) --- */
+    #app { display: none; }
+    #app.show { display: flex; min-height: 100vh; }
+
+    /* --- SIDEBAR --- */
+    .sidebar {
+      width: var(--sidebar-w); background: var(--gray-900); color: white;
+      display: flex; flex-direction: column; position: fixed; inset: 0 0 0 0;
+      z-index: 100; transition: transform .3s;
+    }
+    .sidebar-brand {
+      padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.08);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .sidebar-brand i { font-size: 28px; color: var(--info); }
+    .sidebar-brand span { font-size: 18px; font-weight: 700; }
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .sidebar-nav a {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px; color: var(--gray-400); text-decoration: none;
+      font-size: 14px; font-weight: 500; transition: .15s; cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+    .sidebar-nav a:hover { color: white; background: rgba(255,255,255,.06); }
+    .sidebar-nav a.active {
+      color: white; background: rgba(13,110,253,.15);
+      border-left-color: var(--primary);
+    }
+    .sidebar-nav a i { width: 20px; text-align: center; font-size: 16px; }
+    .sidebar-footer {
+      padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.08);
+    }
+    .sidebar-footer .user-badge {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .sidebar-footer .user-badge .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #6610f2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: white;
+    }
+    .sidebar-footer .user-badge .email {
+      font-size: 12px; color: var(--gray-400); overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .sidebar-footer .btn-logout {
+      width: 100%; padding: 9px; font-size: 13px; font-weight: 600;
+      border: 1px solid rgba(255,255,255,.15); border-radius: 8px;
+      background: transparent; color: var(--gray-400); cursor: pointer;
+      transition: .15s;
+    }
+    .sidebar-footer .btn-logout:hover {
+      background: rgba(220,53,69,.15); border-color: var(--danger); color: #fca5a5;
+    }
+
+    /* --- MAIN CONTENT --- */
+    .main {
+      margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column;
+      min-height: 100vh;
+    }
+    .topbar {
+      background: white; padding: 16px 28px; display: flex;
+      align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--gray-200); position: sticky; top: 0; z-index: 50;
+    }
+    .topbar h2 { font-size: 20px; font-weight: 700; }
+    .topbar .hamburger { display: none; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--gray-600); }
+    .content { padding: 24px 28px; flex: 1; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* --- DASHBOARD CARDS --- */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: white; border-radius: var(--radius); padding: 20px 24px;
+      box-shadow: var(--shadow); border: 1px solid var(--gray-200);
+      display: flex; align-items: center; gap: 16px; transition: .2s;
+    }
+    .stat-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+    .stat-card .icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .stat-card .icon.blue { background: #e8f4fd; color: var(--primary); }
+    .stat-card .icon.yellow { background: #fff8e1; color: #f59e0b; }
+    .stat-card .icon.green { background: #e8f5e9; color: var(--success); }
+    .stat-card .icon.red { background: #fef2f2; color: var(--danger); }
+    .stat-card .icon.purple { background: #f3e8ff; color: #7c3aed; }
+    .stat-card .icon.teal { background: #e0f2fe; color: #0891b2; }
+    .stat-card .info { min-width: 0; }
+    .stat-card .info .label { font-size: 13px; color: var(--gray-500); font-weight: 500; }
+    .stat-card .info .value { font-size: 26px; font-weight: 700; line-height: 1.2; }
+    .stat-card .info .sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+
+    /* --- TABLE --- */
+    .card-widget {
+      background: white; border-radius: var(--radius); box-shadow: var(--shadow);
+      border: 1px solid var(--gray-200); margin-bottom: 24px;
+    }
+    .card-widget-header {
+      padding: 18px 24px; border-bottom: 1px solid var(--gray-200);
+      font-size: 16px; font-weight: 700;
+    }
+    .card-widget-body { padding: 0; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--gray-50); }
+    th { padding: 12px 18px; text-align: left; font-size: 12px; font-weight: 600;
+         color: var(--gray-500); text-transform: uppercase; letter-spacing: .04em; }
+    td { padding: 12px 18px; font-size: 14px; border-top: 1px solid var(--gray-200); }
+    tr:hover td { background: var(--gray-50); }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+    .badge-pendiente { background: #fef2f2; color: #dc2626; }
+    .badge-en-progreso { background: #e8f4fd; color: #2563eb; }
+    .badge-completado { background: #e8f5e9; color: #16a34a; }
+    .badge-pagado { background: #e8f5e9; color: #16a34a; }
+
+    /* --- SEARCH USERS --- */
+    .search-box {
+      display: flex; gap: 10px; max-width: 500px;
+    }
+    .search-box input {
+      flex: 1; padding: 10px 14px; border: 2px solid var(--gray-200);
+      border-radius: 8px; font-size: 14px; transition: .15s;
+    }
+    .search-box input:focus { outline: none; border-color: var(--primary); }
+    .search-box button {
+      padding: 10px 20px; background: var(--primary); color: white;
+      border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
+      transition: .15s;
+    }
+    .search-box button:hover { background: var(--primary-dark); }
+    #userNotFound {
+      margin-top: 8px; font-size: 13px; color: var(--danger); display: none;
+    }
+
+    /* --- PEDIDOS CARDS --- */
+    .pedido-card {
+      background: white; border-radius: var(--radius);
+      border: 1px solid var(--gray-200); margin-bottom: 14px;
+      overflow: hidden; transition: .2s;
+    }
+    .pedido-card:hover { box-shadow: var(--shadow-lg); }
+    .pedido-card .head {
+      padding: 16px 20px; display: flex; justify-content: space-between;
+      align-items: center; border-bottom: 1px solid var(--gray-200);
+    }
+    .pedido-card .head h4 { font-size: 16px; }
+    .pedido-card .body {
+      padding: 16px 20px; display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;
+    }
+    .pedido-card .body .field label { font-size: 11px; color: var(--gray-400); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .pedido-card .body .field span { font-size: 14px; font-weight: 500; }
+    .pedido-card .foot {
+      padding: 12px 20px; background: var(--gray-50);
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .pedido-card .foot button { padding: 7px 16px; font-size: 13px; font-weight: 600;
+      border: none; border-radius: 6px; cursor: pointer; transition: .15s; }
+    .pedido-card .foot button.btn-progreso { background: var(--warning); color: #333; }
+    .pedido-card .foot button.btn-progreso:hover { background: #e0a800; }
+    .pedido-card .foot button.btn-completar { background: var(--success); color: white; }
+    .pedido-card .foot button.btn-completar:hover { background: #157347; }
+    .pedido-card .foot .completed-msg { color: var(--success); font-weight: 600; font-size: 13px; padding: 7px 0; }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .topbar .hamburger { display: block; }
+      .topbar h2 { font-size: 16px; }
+      .content { padding: 16px; }
+      .stats-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+      .stat-card { padding: 14px 16px; }
+      .stat-card .info .value { font-size: 22px; }
+      .pedido-card .body { grid-template-columns: 1fr 1fr; }
+      .login-card { padding: 32px 24px 28px; }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .pedido-card .body { grid-template-columns: 1fr; }
+    }
+
+    .loading { text-align: center; padding: 40px; color: var(--gray-400); }
+    .empty-state { text-align: center; padding: 40px; color: var(--gray-400); }
+    .empty-state i { font-size: 40px; margin-bottom: 12px; display: block; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Panel de Gesti&oacute;n de Lavados</h2>
 
-    <div id="userInfo" class="user-info hidden">
-      <span>Conectado como: <strong id="userName"></strong></span>
-      <button class="btn-secondary" onclick="logout()">Cerrar sesi&oacute;n</button>
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-icon"><i class="fas fa-car-wash"></i></div>
+    <h1>Admin Lavadero</h1>
+    <p>Ingresa tus credenciales para acceder al panel</p>
+    <div id="loginError"></div>
+    <label for="loginEmail">Correo electrónico</label>
+    <div class="input-group">
+      <i class="fas fa-envelope"></i>
+      <input type="email" id="loginEmail" placeholder="usuario@ejemplo.com" />
     </div>
-
-    <div id="loginForm" class="login-form">
-      <h3 style="text-align:center;margin-bottom:20px;color:#333;">Iniciar sesi&oacute;n</h3>
-      <input type="email" id="loginEmail" placeholder="Correo electr&oacute;nico" />
-      <input type="password" id="loginPassword" placeholder="Contrase&ntilde;a" />
-      <div id="loginError" class="error hidden" style="margin-bottom:12px;"></div>
-      <button onclick="login()" style="width:100%;">Ingresar</button>
+    <label for="loginPassword">Contraseña</label>
+    <div class="input-group">
+      <i class="fas fa-lock"></i>
+      <input type="password" id="loginPassword" placeholder="••••••••" />
     </div>
-
-    <div id="searchSection" class="search-section hidden">
-      <label for="userEmail">Email del Usuario:</label>
-      <div style="display:flex;gap:10px;">
-        <input type="email" id="userEmail" placeholder="Ingrese el email del usuario" style="flex:1;" />
-        <button onclick="buscarUsuario()" style="white-space:nowrap;">Buscar</button>
-      </div>
-      <div id="userNotFound" class="error hidden" style="margin-top:8px;">Usuario no encontrado</div>
-    </div>
-
-    <div id="statsContainer" class="stats"></div>
-    <div id="pedidosContainer"></div>
+    <button class="btn-primary" onclick="login()">
+      <i class="fas fa-arrow-right-to-bracket" style="margin-right:8px;"></i>Ingresar
+    </button>
+    <p style="text-align:center;margin-top:18px;font-size:12px;color:var(--gray-400);">
+      <i class="fas fa-shield-halved"></i> Acceso exclusivo para administradores
+    </p>
   </div>
+</div>
 
-  <script>
-    let pedidos = [];
-    let authToken = localStorage.getItem('adminToken') || '';
-    let userEmail = localStorage.getItem('adminEmail') || '';
-    let refreshTimer = null;
-    const API_BASE = window.location.origin + '';
-
-    function decodeToken(token) {
-      try {
-        const payload = token.split('.')[1];
-        return JSON.parse(atob(payload));
-      } catch {
-        return null;
-      }
-    }
-
-    function getTokenExpiry(token) {
-      const decoded = decodeToken(token);
-      return decoded ? decoded.exp * 1000 : 0;
-    }
-
-    function isTokenExpired(token) {
-      return Date.now() >= getTokenExpiry(token);
-    }
-
-    function getTimeUntilExpiry(token) {
-      return Math.max(0, getTokenExpiry(token) - Date.now());
-    }
-
-    async function refreshToken() {
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: authToken }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'No se pudo renovar');
-        authToken = data.token;
-        localStorage.setItem('adminToken', authToken);
-        scheduleRefresh();
-      } catch {
-        alert('Sesi\u00f3n expirada. Vuelva a iniciar sesi\u00f3n.');
-        logout();
-      }
-    }
-
-    function scheduleRefresh() {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      const timeLeft = getTimeUntilExpiry(authToken);
-      if (timeLeft <= 0) { logout(); return; }
-      refreshTimer = setTimeout(refreshToken, Math.max(60000, timeLeft - 30000));
-    }
-
-    async function login() {
-      const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      const errorEl = document.getElementById('loginError');
-
-      if (!email || !password) {
-        errorEl.textContent = 'Ingrese correo y contrase\u00f1a';
-        errorEl.classList.remove('hidden');
-        return;
-      }
-
-      errorEl.classList.add('hidden');
-
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-
-        let data;
-        try {
-          data = await res.json();
-        } catch {
-          const text = await res.text();
-          throw new Error(text || 'Credenciales inv\u00e1lidas');
-        }
-        if (!res.ok) throw new Error(data.error || data.message || 'Credenciales inv\u00e1lidas');
-
-        authToken = data.token;
-        userEmail = email;
-        localStorage.setItem('adminToken', authToken);
-        localStorage.setItem('adminEmail', email);
-
-        showLoggedIn();
-        scheduleRefresh();
-
-        document.getElementById('loginEmail').value = '';
-        document.getElementById('loginPassword').value = '';
-
-      } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.classList.remove('hidden');
-      }
-    }
-
-    function showLoggedIn() {
-      document.getElementById('loginForm').classList.add('hidden');
-      document.getElementById('userInfo').classList.remove('hidden');
-      document.getElementById('userName').textContent = userEmail;
-      document.getElementById('searchSection').classList.remove('hidden');
-    }
-
-    function logout() {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      authToken = '';
-      userEmail = '';
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminEmail');
-      document.getElementById('userInfo').classList.add('hidden');
-      document.getElementById('loginForm').classList.remove('hidden');
-      document.getElementById('searchSection').classList.add('hidden');
-      document.getElementById('statsContainer').innerHTML = '';
-      document.getElementById('pedidosContainer').innerHTML = '';
-    }
-
-    function getHeaders() {
-      const headers = { 'Content-Type': 'application/json' };
-      if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
-      return headers;
-    }
-
-    async function apiFetch(url, options = {}) {
-      if (isTokenExpired(authToken)) {
-        await refreshToken();
-      }
-      const res = await fetch(url, {
-        ...options,
-        headers: { ...getHeaders(), ...options.headers },
-      });
-      if (res.status === 401) {
-        alert('Sesi\u00f3n expirada. Vuelva a iniciar sesi\u00f3n.');
-        logout();
-        throw new Error('No autorizado');
-      }
-      return res;
-    }
-
-    if (authToken && !isTokenExpired(authToken)) {
-      showLoggedIn();
-      scheduleRefresh();
-    }
-
-    async function buscarUsuario() {
-      const email = document.getElementById('userEmail').value.trim();
-      const notFound = document.getElementById('userNotFound');
-      notFound.classList.add('hidden');
-
-      if (!email) {
-        notFound.textContent = 'Ingrese un email';
-        notFound.classList.remove('hidden');
-        return;
-      }
-
-      try {
-        const res = await apiFetch(`${API_BASE}/api/admin/users/search?email=${encodeURIComponent(email)}`);
-        if (!res.ok) throw new Error();
-        const user = await res.json();
-        document.getElementById('userEmail').dataset.userId = user._id;
-        await cargarPedidos(user._id);
-      } catch {
-        notFound.textContent = 'Usuario no encontrado';
-        notFound.classList.remove('hidden');
-      }
-    }
-
-    async function cargarPedidos(userId) {
-      userId = userId || document.getElementById('userEmail').dataset.userId;
-      const container = document.getElementById('pedidosContainer');
-      const statsContainer = document.getElementById('statsContainer');
-
-      container.innerHTML = '<div class="loading">Cargando pedidos...</div>';
-      statsContainer.innerHTML = '';
-
-      if (!userId) {
-        container.innerHTML = '<div class="error">Ingrese un ID de usuario v&aacute;lido.</div>';
-        return;
-      }
-
-      try {
-        const res = await apiFetch(`${API_BASE}/api/cars/status/${userId}`);
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || 'Error al obtener pedidos');
-
-        pedidos = data.data || data.cars || [];
-
-        if (pedidos.length === 0) {
-          container.innerHTML = '<div class="success">No se encontraron pedidos para este usuario.</div>';
-          return;
-        }
-
-        actualizarEstadisticas();
-        renderizarPedidos();
-
-      } catch (err) {
-        if (err.message !== 'No autorizado') {
-          container.innerHTML = `<div class="error">${err.message}</div>`;
-        }
-      }
-    }
-
-    function actualizarEstadisticas() {
-      const statsContainer = document.getElementById('statsContainer');
-      const pendientes = pedidos.filter(p => p.status === 'Pendiente').length;
-      const enProgreso = pedidos.filter(p => p.status === 'En Progreso').length;
-      const completados = pedidos.filter(p => p.status === 'Completado').length;
-
-      statsContainer.innerHTML = `
-        <div class="stat-card">
-          <div>Pendientes</div>
-          <div class="stat-number stat-pendiente">${pendientes}</div>
+<!-- ===== APP ===== -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <i class="fas fa-car-wash"></i>
+      <span>LavaderoApp</span>
+    </div>
+    <div class="sidebar-nav">
+      <a class="active" onclick="navigate('dashboard')"><i class="fas fa-chart-pie"></i>Dashboard</a>
+      <a onclick="navigate('users')"><i class="fas fa-users"></i>Usuarios</a>
+      <a onclick="navigate('reports')"><i class="fas fa-file-chart-column"></i>Reportes</a>
+    </div>
+    <div class="sidebar-footer">
+      <div class="user-badge">
+        <div class="avatar"><i class="fas fa-user"></i></div>
+        <div>
+          <div style="font-weight:600;font-size:13px;">Admin</div>
+          <div class="email" id="sidebarEmail">admin@email.com</div>
         </div>
-        <div class="stat-card">
-          <div>En Progreso</div>
-          <div class="stat-number stat-progreso">${enProgreso}</div>
+      </div>
+      <button class="btn-logout" onclick="logout()"><i class="fas fa-right-from-bracket" style="margin-right:6px;"></i>Cerrar sesión</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">
+        <i class="fas fa-bars"></i>
+      </button>
+      <h2 id="pageTitle">Dashboard</h2>
+      <div style="font-size:13px;color:var(--gray-500);">
+        <i class="fas fa-sync-alt" style="margin-right:4px;"></i>
+        <span id="lastUpdate">Actualizado ahora</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ===== DASHBOARD PAGE ===== -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid" id="statsGrid">
+          <div class="loading"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Cargando...</div>
         </div>
-        <div class="stat-card">
-          <div>Completados</div>
-          <div class="stat-number stat-completado">${completados}</div>
+        <div class="card-widget">
+          <div class="card-widget-header"><i class="fas fa-clock-rotate-left" style="margin-right:8px;"></i>Actividad Reciente</div>
+          <div class="card-widget-body">
+            <table>
+              <thead>
+                <tr><th>Placa</th><th>Modelo</th><th>Estado</th><th>Monto</th><th>Registrado</th></tr>
+              </thead>
+              <tbody id="recentTable"><tr><td colspan="5" class="loading">Cargando...</td></tr></tbody>
+            </table>
+          </div>
         </div>
-      `;
-    }
+      </div>
 
-    function renderizarPedidos() {
-      const container = document.getElementById('pedidosContainer');
-      container.innerHTML = '';
-
-      pedidos.forEach(car => {
-        const card = document.createElement('div');
-        card.className = `card ${car.status.toLowerCase().replace(' ', '-')}`;
-
-        card.innerHTML = `
-          <div class="card-header">
-            <h3>${car.plate || 'N/D'}</h3>
-            <span id="status-${car._id}" class="estado ${car.status.toLowerCase().replace(' ', '-')}">
-              ${car.status}
-            </span>
+      <!-- ===== USERS PAGE ===== -->
+      <div class="page" id="page-users">
+        <div class="card-widget" style="margin-bottom:20px;">
+          <div class="card-widget-header"><i class="fas fa-magnifying-glass" style="margin-right:8px;"></i>Buscar Usuario</div>
+          <div class="card-widget-body" style="padding:20px;">
+            <div class="search-box">
+              <input type="email" id="userEmail" placeholder="Ingrese el email del usuario" />
+              <button onclick="buscarUsuario()"><i class="fas fa-search" style="margin-right:6px;"></i>Buscar</button>
+            </div>
+            <div id="userNotFound">Usuario no encontrado</div>
           </div>
-          <div class="card-body">
-            <div class="card-info">
-              <strong>Modelo</strong>
-              <span>${car.model || 'N/D'}</span>
-            </div>
-            <div class="card-info">
-              <strong>Marca</strong>
-              <span>${car.brand || 'N/D'}</span>
-            </div>
-            <div class="card-info">
-              <strong>Tipo de lavado</strong>
-              <span>${car.washType || 'N/D'}</span>
-            </div>
-            <div class="card-info">
-              <strong>Monto</strong>
-              <span>Gs. ${car.amount || '0'}</span>
-            </div>
-            <div class="card-info">
-              <strong>Registrado</strong>
-              <span>${new Date(car.createdAt).toLocaleDateString()}</span>
-            </div>
-            ${car.scheduledDate ? `
-            <div class="card-info">
-              <strong>Agendado</strong>
-              <span>${new Date(car.scheduledDate).toLocaleDateString()} ${car.scheduledTime || ''}</span>
-            </div>
-            ` : ''}
+        </div>
+        <div id="userStats" class="stats-grid" style="display:none;"></div>
+        <div id="pedidosContainer"></div>
+      </div>
+
+      <!-- ===== REPORTS PAGE ===== -->
+      <div class="page" id="page-reports">
+        <div class="stats-grid" id="reportStats">
+          <div class="loading"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Cargando...</div>
+        </div>
+        <div class="card-widget">
+          <div class="card-widget-header"><i class="fas fa-credit-card" style="margin-right:8px;"></i>Resumen de Pagos</div>
+          <div class="card-widget-body" id="paymentSummary" style="padding:20px;">
+            <div class="loading">Cargando...</div>
           </div>
-          <div class="card-actions">
-            ${car.status === 'Pendiente' ? `
-              <button class="btn-warning" onclick="moverAProgreso('${car._id}')">
-                Mover a En Progreso
-              </button>
-            ` : ''}
-            ${car.status === 'En Progreso' ? `
-              <button class="btn-success" onclick="cerrarPedido('${car._id}')">
-                Cerrar Pedido
-              </button>
-            ` : ''}
-            ${car.status === 'Completado' ? `
-              <span style="color: #28a745; font-weight: bold;">Pedido completado</span>
-            ` : ''}
-          </div>
-        `;
-        container.appendChild(card);
-      });
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- overlay for mobile sidebar -->
+<div id="sidebarOverlay" style="display:none;position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.4);" onclick="document.getElementById('sidebar').classList.remove('open');this.style.display='none';"></div>
+
+<script>
+let authToken = localStorage.getItem('adminToken') || '';
+let userEmail = localStorage.getItem('adminEmail') || '';
+let pedidos = [];
+let refreshTimer = null;
+let dashboardData = null;
+const API_BASE = window.location.origin + '';
+const SIDEBAR = document.getElementById('sidebar');
+
+SIDEBAR.querySelectorAll('a').forEach(a => {
+  a.addEventListener('click', () => {
+    SIDEBAR.classList.remove('open');
+    document.getElementById('sidebarOverlay').style.display = 'none';
+  });
+});
+
+function decodeToken(token) {
+  try { return JSON.parse(atob(token.split('.')[1])); } catch { return null; }
+}
+function getTokenExpiry(token) { const d = decodeToken(token); return d ? d.exp * 1000 : 0; }
+function isTokenExpired(token) { return Date.now() >= getTokenExpiry(token); }
+function getTimeUntilExpiry(token) { return Math.max(0, getTokenExpiry(token) - Date.now()); }
+
+async function refreshToken() {
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: authToken }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'No se pudo renovar');
+    authToken = data.token;
+    localStorage.setItem('adminToken', authToken);
+    scheduleRefresh();
+  } catch {
+    alert('Sesi\u00f3n expirada. Vuelva a iniciar sesi\u00f3n.');
+    logout();
+  }
+}
+
+function scheduleRefresh() {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  const timeLeft = getTimeUntilExpiry(authToken);
+  if (timeLeft <= 0) { logout(); return; }
+  refreshTimer = setTimeout(refreshToken, Math.max(60000, timeLeft - 30000));
+}
+
+async function login() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+
+  if (!email || !password) {
+    errorEl.textContent = 'Ingrese correo y contrase\u00f1a';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  errorEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    let data;
+    try { data = await res.json(); } catch {
+      const text = await res.text();
+      throw new Error(text || 'Credenciales inv\u00e1lidas');
+    }
+    if (!res.ok) throw new Error(data.error || data.message || 'Credenciales inv\u00e1lidas');
+
+    authToken = data.token;
+    userEmail = email;
+    localStorage.setItem('adminToken', authToken);
+    localStorage.setItem('adminEmail', email);
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.add('show');
+    document.getElementById('sidebarEmail').textContent = email;
+
+    scheduleRefresh();
+    navigate('dashboard');
+
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.style.display = 'block';
+  }
+}
+
+function logout() {
+  if (refreshTimer) clearTimeout(refreshTimer);
+  authToken = '';
+  userEmail = '';
+  localStorage.removeItem('adminToken');
+  localStorage.removeItem('adminEmail');
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginPassword').value = '';
+}
+
+function getHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+  return h;
+}
+
+async function apiFetch(url, options = {}) {
+  if (isTokenExpired(authToken)) await refreshToken();
+  const res = await fetch(url, { ...options, headers: { ...getHeaders(), ...options.headers } });
+  if (res.status === 401) {
+    alert('Sesi\u00f3n expirada. Vuelva a iniciar sesi\u00f3n.');
+    logout();
+    throw new Error('No autorizado');
+  }
+  return res;
+}
+
+if (authToken && !isTokenExpired(authToken)) {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.add('show');
+  document.getElementById('sidebarEmail').textContent = userEmail;
+  scheduleRefresh();
+  navigate('dashboard');
+} else if (authToken) {
+  localStorage.removeItem('adminToken');
+  localStorage.removeItem('adminEmail');
+}
+
+// --- NAVIGATION ---
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.sidebar-nav a').forEach(a => {
+    if (a.getAttribute('onclick') && a.getAttribute('onclick').includes(page)) a.classList.add('active');
+  });
+
+  const titles = { dashboard: 'Dashboard', users: 'Usuarios', reports: 'Reportes' };
+  document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
+
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'reports') loadReports();
+}
+
+// --- DASHBOARD ---
+async function loadDashboard() {
+  const grid = document.getElementById('statsGrid');
+  const tbody = document.getElementById('recentTable');
+  try {
+    const res = await apiFetch(`${API_BASE}/api/admin/dashboard`);
+    if (!res.ok) {
+      let msg = 'Error al cargar dashboard';
+      try { const e = await res.json(); msg = e.error || msg; } catch {}
+      throw new Error(msg);
+    }
+    dashboardData = await res.json();
+  } catch (err) {
+    grid.innerHTML = `<div class="empty-state"><i class="fas fa-circle-exclamation"></i>${err.message}</div>`;
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No disponible</td></tr>';
+    return;
+  }
+
+  const d = dashboardData;
+  const cars = d.cars || {};
+
+  grid.innerHTML = `
+    <div class="stat-card">
+      <div class="icon blue"><i class="fas fa-car-side"></i></div>
+      <div class="info">
+        <div class="label">Total Veh\u00edculos</div>
+        <div class="value">${cars.total ?? 0}</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon yellow"><i class="fas fa-hourglass-half"></i></div>
+      <div class="info">
+        <div class="label">Pendientes</div>
+        <div class="value">${cars.Pendiente ?? 0}</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon blue"><i class="fas fa-spinner"></i></div>
+      <div class="info">
+        <div class="label">En Progreso</div>
+        <div class="value">${cars['En Progreso'] ?? 0}</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon green"><i class="fas fa-circle-check"></i></div>
+      <div class="info">
+        <div class="label">Completados</div>
+        <div class="value">${cars.Completado ?? 0}</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon purple"><i class="fas fa-users"></i></div>
+      <div class="info">
+        <div class="label">Usuarios Registrados</div>
+        <div class="value">${d.users ?? 0}</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon teal"><i class="fas fa-credit-card"></i></div>
+      <div class="info">
+        <div class="label">Pagos Totales</div>
+        <div class="value">${d.payments?.total ?? 0}</div>
+        <div class="sub">${d.payments?.paid?.count ?? 0} pagados, ${d.payments?.pending?.count ?? 0} pendientes</div>
+      </div>
+    </div>
+  `;
+
+  if (d.recentCars && d.recentCars.length) {
+    tbody.innerHTML = d.recentCars.map(c => {
+      const st = (c.status || '').toLowerCase().replace(/\s+/g, '-');
+      return `<tr>
+        <td><strong>${c.plate || 'N/D'}</strong></td>
+        <td>${c.brand || ''} ${c.model || ''}</td>
+        <td><span class="badge badge-${st}">${c.status}</span></td>
+        <td>Gs. ${(c.amount || 0).toLocaleString()}</td>
+        <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+      </tr>`;
+    }).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Sin actividad reciente</td></tr>';
+  }
+
+  document.getElementById('lastUpdate').textContent = 'Actualizado ' + new Date().toLocaleTimeString();
+}
+
+// --- USERS ---
+async function buscarUsuario() {
+  const email = document.getElementById('userEmail').value.trim();
+  const notFound = document.getElementById('userNotFound');
+  notFound.style.display = 'none';
+  const pedidosContainer = document.getElementById('pedidosContainer');
+  const userStats = document.getElementById('userStats');
+  userStats.style.display = 'none';
+  pedidosContainer.innerHTML = '';
+  pedidos = [];
+
+  if (!email) {
+    notFound.textContent = 'Ingrese un email';
+    notFound.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/api/admin/users/search?email=${encodeURIComponent(email)}`);
+    if (!res.ok) {
+      let msg = 'Usuario no encontrado';
+      try { const e = await res.json(); msg = e.error || msg; } catch {}
+      throw new Error(msg);
+    }
+    const user = await res.json();
+    document.getElementById('userEmail').dataset.userId = user._id;
+    await cargarPedidos(user._id);
+  } catch (err) {
+    notFound.textContent = err.message;
+    notFound.style.display = 'block';
+  }
+}
+
+async function cargarPedidos(userId) {
+  userId = userId || document.getElementById('userEmail').dataset.userId;
+  const container = document.getElementById('pedidosContainer');
+  const userStats = document.getElementById('userStats');
+
+  container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Cargando pedidos...</div>';
+  userStats.style.display = 'none';
+
+  if (!userId) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-user-xmark"></i>Seleccione un usuario v\u00e1lido</div>';
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/api/cars/status/${userId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al obtener pedidos');
+
+    pedidos = data.data || data.cars || [];
+
+    const pendientes = pedidos.filter(p => p.status === 'Pendiente').length;
+    const enProgreso = pedidos.filter(p => p.status === 'En Progreso').length;
+    const completados = pedidos.filter(p => p.status === 'Completado').length;
+
+    userStats.style.display = 'grid';
+    userStats.innerHTML = `
+      <div class="stat-card">
+        <div class="icon yellow"><i class="fas fa-hourglass-half"></i></div>
+        <div class="info"><div class="label">Pendientes</div><div class="value">${pendientes}</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="icon blue"><i class="fas fa-spinner"></i></div>
+        <div class="info"><div class="label">En Progreso</div><div class="value">${enProgreso}</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="icon green"><i class="fas fa-circle-check"></i></div>
+        <div class="info"><div class="label">Completados</div><div class="value">${completados}</div></div>
+      </div>
+    `;
+
+    if (pedidos.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-car"></i>No se encontraron pedidos para este usuario.</div>';
+      return;
     }
 
-    async function moverAProgreso(carId) {
-      if (!confirm('Mover este pedido a "En Progreso"?')) return;
-      try {
-        const res = await apiFetch(`${API_BASE}/api/cars/update-status/${carId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'En Progreso' }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error al actualizar');
-        const pedido = pedidos.find(p => p._id === carId);
-        if (pedido) pedido.status = 'En Progreso';
-        actualizarEstadisticas();
-        renderizarPedidos();
-      } catch (err) {
-        if (err.message !== 'No autorizado') alert('Error: ' + err.message);
-      }
+    renderizarPedidos();
+  } catch (err) {
+    if (err.message !== 'No autorizado') {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-circle-exclamation"></i>' + err.message + '</div>';
     }
+  }
+}
 
-    async function cerrarPedido(carId) {
-      if (!confirm('Cerrar este pedido como completado?')) return;
-      try {
-        const res = await apiFetch(`${API_BASE}/api/cars/close-car/${carId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'Completado' }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error al cerrar');
-        const pedido = pedidos.find(p => p._id === carId);
-        if (pedido) pedido.status = 'Completado';
-        actualizarEstadisticas();
-        renderizarPedidos();
-      } catch (err) {
-        if (err.message !== 'No autorizado') alert('Error: ' + err.message);
-      }
-    }
+function renderizarPedidos() {
+  const container = document.getElementById('pedidosContainer');
+  container.innerHTML = pedidos.map(car => {
+    const statusClass = car.status.toLowerCase().replace(' ', '-');
+    const statusBadge = 'badge-' + statusClass;
+    return `
+      <div class="pedido-card">
+        <div class="head">
+          <h4><i class="fas fa-car" style="margin-right:8px;color:var(--gray-400);"></i>${car.plate || 'N/D'}</h4>
+          <span class="badge ${statusBadge}">${car.status}</span>
+        </div>
+        <div class="body">
+          <div class="field"><label>Modelo</label><span>${car.model || 'N/D'}</span></div>
+          <div class="field"><label>Marca</label><span>${car.brand || 'N/D'}</span></div>
+          <div class="field"><label>Tipo de lavado</label><span>${car.washType || 'N/D'}</span></div>
+          <div class="field"><label>Monto</label><span>Gs. ${(car.amount || 0).toLocaleString()}</span></div>
+          <div class="field"><label>Registrado</label><span>${new Date(car.createdAt).toLocaleDateString()}</span></div>
+          ${car.scheduledDate ? `<div class="field"><label>Agendado</label><span>${new Date(car.scheduledDate).toLocaleDateString()} ${car.scheduledTime || ''}</span></div>` : ''}
+        </div>
+        <div class="foot">
+          ${car.status === 'Pendiente' ? `<button class="btn-progreso" onclick="moverAProgreso('${car._id}')"><i class="fas fa-play" style="margin-right:4px;"></i>Mover a En Progreso</button>` : ''}
+          ${car.status === 'En Progreso' ? `<button class="btn-completar" onclick="cerrarPedido('${car._id}')"><i class="fas fa-check" style="margin-right:4px;"></i>Cerrar Pedido</button>` : ''}
+          ${car.status === 'Completado' ? `<span class="completed-msg"><i class="fas fa-circle-check" style="margin-right:4px;"></i>Pedido completado</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
-    if (authToken && userEmail) {
-      document.getElementById('loginForm').classList.add('hidden');
-      document.getElementById('userInfo').classList.remove('hidden');
-      document.getElementById('userName').textContent = userEmail;
-      document.getElementById('searchSection').classList.remove('hidden');
+async function moverAProgreso(carId) {
+  if (!confirm('Mover este pedido a "En Progreso"?')) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/api/cars/update-status/${carId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'En Progreso' }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al actualizar');
+    const pedido = pedidos.find(p => p._id === carId);
+    if (pedido) pedido.status = 'En Progreso';
+    renderizarPedidos();
+    document.getElementById('userStats').innerHTML = '';
+    const pendientes = pedidos.filter(p => p.status === 'Pendiente').length;
+    const enProgreso = pedidos.filter(p => p.status === 'En Progreso').length;
+    const completados = pedidos.filter(p => p.status === 'Completado').length;
+    document.getElementById('userStats').innerHTML = `
+      <div class="stat-card"><div class="icon yellow"><i class="fas fa-hourglass-half"></i></div><div class="info"><div class="label">Pendientes</div><div class="value">${pendientes}</div></div></div>
+      <div class="stat-card"><div class="icon blue"><i class="fas fa-spinner"></i></div><div class="info"><div class="label">En Progreso</div><div class="value">${enProgreso}</div></div></div>
+      <div class="stat-card"><div class="icon green"><i class="fas fa-circle-check"></i></div><div class="info"><div class="label">Completados</div><div class="value">${completados}</div></div></div>
+    `;
+    loadDashboard();
+  } catch (err) {
+    if (err.message !== 'No autorizado') alert('Error: ' + err.message);
+  }
+}
+
+async function cerrarPedido(carId) {
+  if (!confirm('Cerrar este pedido como completado?')) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/api/cars/close-car/${carId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'Completado' }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al cerrar');
+    const pedido = pedidos.find(p => p._id === carId);
+    if (pedido) pedido.status = 'Completado';
+    await cargarPedidos();
+    loadDashboard();
+  } catch (err) {
+    if (err.message !== 'No autorizado') alert('Error: ' + err.message);
+  }
+}
+
+// --- REPORTS ---
+async function loadReports() {
+  const reportStats = document.getElementById('reportStats');
+  const paymentSummary = document.getElementById('paymentSummary');
+  try {
+    const res = await apiFetch(`${API_BASE}/api/admin/dashboard`);
+    if (!res.ok) {
+      let msg = 'Error al cargar reportes';
+      try { const e = await res.json(); msg = e.error || msg; } catch {}
+      throw new Error(msg);
     }
-  </script>
+    dashboardData = await res.json();
+  } catch (err) {
+    reportStats.innerHTML = `<div class="empty-state"><i class="fas fa-circle-exclamation"></i>${err.message}</div>`;
+    paymentSummary.innerHTML = '';
+    return;
+  }
+
+  const d = dashboardData;
+  const cars = d.cars || {};
+  const payments = d.payments || {};
+  const paid = payments.paid || {};
+  const pending = payments.pending || {};
+
+  const totalIngresos = paid.total || 0;
+  const pendienteIngresos = pending.total || 0;
+  const totalOps = cars.total || 0;
+  const completados = cars.Completado || 0;
+
+  reportStats.innerHTML = `
+    <div class="stat-card">
+      <div class="icon green"><i class="fas fa-sack-dollar"></i></div>
+      <div class="info">
+        <div class="label">Ingresos Cobrados</div>
+        <div class="value">Gs. ${totalIngresos.toLocaleString()}</div>
+        <div class="sub">${paid.count || 0} pagos</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon yellow"><i class="fas fa-clock"></i></div>
+      <div class="info">
+        <div class="label">Pendiente de Cobro</div>
+        <div class="value">Gs. ${pendienteIngresos.toLocaleString()}</div>
+        <div class="sub">${pending.count || 0} pagos</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon purple"><i class="fas fa-rotate"></i></div>
+      <div class="info">
+        <div class="label">Total Operaciones</div>
+        <div class="value">${totalOps}</div>
+        <div class="sub">${completados} completados</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon teal"><i class="fas fa-users-gear"></i></div>
+      <div class="info">
+        <div class="label">Eficiencia</div>
+        <div class="value">${totalOps > 0 ? Math.round(completados / totalOps * 100) : 0}%</div>
+        <div class="sub">tasa de finalización</div>
+      </div>
+    </div>
+  `;
+
+  paymentSummary.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+      <div style="background:#f0fdf4;border-radius:10px;padding:16px;border:1px solid #bbf7d0;">
+        <div style="font-size:13px;color:#15803d;font-weight:600;margin-bottom:4px;">Pagados</div>
+        <div style="font-size:22px;font-weight:700;color:#16a34a;">${paid.count || 0}</div>
+        <div style="font-size:13px;color:#15803d;">Gs. ${totalIngresos.toLocaleString()}</div>
+      </div>
+      <div style="background:#fefce8;border-radius:10px;padding:16px;border:1px solid #fde68a;">
+        <div style="font-size:13px;color:#a16207;font-weight:600;margin-bottom:4px;">Pendientes</div>
+        <div style="font-size:22px;font-weight:700;color:#ca8a04;">${pending.count || 0}</div>
+        <div style="font-size:13px;color:#a16207;">Gs. ${pendienteIngresos.toLocaleString()}</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:10px;padding:16px;border:1px solid #cbd5e1;">
+        <div style="font-size:13px;color:#475569;font-weight:600;margin-bottom:4px;">Total General</div>
+        <div style="font-size:22px;font-weight:700;color:#1e293b;">${payments.total || 0}</div>
+        <div style="font-size:13px;color:#64748b;">transacciones</div>
+      </div>
+    </div>
+  `;
+}
+
+// --- ENTER key on login ---
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPassword').focus(); });
+document.getElementById('userEmail').addEventListener('keydown', e => { if (e.key === 'Enter') buscarUsuario(); });
+</script>
 </body>
 </html>
