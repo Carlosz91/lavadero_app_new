@@ -78,11 +78,30 @@ exports.createCheckoutSession = async (req, res, next) => {
 };
 
 /**
- * @desc    Página HTML de confirmación de pago exitoso
+ * @desc    Página HTML de confirmación de pago exitoso.
+ *          También actualiza el pago como fallback por si el webhook no llega.
  * @route   GET /api/stripe/success
  * @access  Público (redirección Stripe)
  */
 exports.success = async (req, res) => {
+  const { session_id } = req.query;
+  if (session_id) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(session_id);
+      const paymentId = session.metadata?.paymentId;
+      if (paymentId) {
+        const payment = await Payment.findById(paymentId);
+        if (payment && payment.status === 'Pendiente') {
+          payment.status = 'Pagado';
+          payment.method = 'Stripe';
+          await payment.save();
+          logger.info('Pago Stripe confirmado desde success page', { paymentId, sessionId: session_id });
+        }
+      }
+    } catch (err) {
+      logger.error('Error al confirmar pago desde success page', { error: err.message, sessionId: session_id });
+    }
+  }
   res.send(`<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f0fdf4;"><div style="text-align:center;"><h1 style="color:#16a34a;">\u2705 Pago exitoso</h1><p>Gracias por tu pago. Ya puedes cerrar esta ventana.</p></div></body></html>`);
 };
 
