@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
@@ -303,17 +304,32 @@ class LoginScreenState extends State<LoginScreen> {
     return SizedBox(
       width: double.infinity,
       height: 48,
-      child: OutlinedButton.icon(
+      child: OutlinedButton(
         onPressed: _isLoading ? null : _googleLogin,
-        icon: Image.network(
-          'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-          height: 20,
-        ),
-        label: const Text('Continuar con Google'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
           side: BorderSide(color: Colors.grey.shade300),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SvgPicture.asset(
+              'assets/google_logo.svg',
+              width: 20,
+              height: 20,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Continuar con Google',
+              style: AppTextStyles.body.copyWith(
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
