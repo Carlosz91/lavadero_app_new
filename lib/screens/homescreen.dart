@@ -265,9 +265,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final active = _activeWash;
     final model = active?['model'] ?? '';
     final brand = active?['brand'] ?? '';
+    final plate = active?['plate'] ?? '';
     final status = active?['status'] ?? '';
     final isInProgress = status == 'En Progreso';
-    final progress = isInProgress ? 0.85 : status == 'Pendiente' ? 0.15 : 0.0;
+    final isPending = status == 'Pendiente';
+    final progress = isInProgress ? 0.65 : isPending ? 0.25 : 0.0;
 
     return Container(
       width: double.infinity,
@@ -317,20 +319,32 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        isInProgress ? 'Etapa: Secado - 85%' : 'Esperando inicio',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Color(isInProgress ? 0xFF2563EB : 0xFFF59E0B).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              status,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(isInProgress ? 0xFF2563EB : 0xFFF59E0B),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            plate,
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF14B8A6).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.directions_car, color: Color(0xFF14B8A6), size: 28),
                 ),
               ],
             ),
@@ -343,6 +357,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF14B8A6)),
                 minHeight: 8,
               ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isPending ? 'Esperando inicio del lavado' : 'Lavado en proceso',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
             ),
           ] else ...[
             const SizedBox(height: 12),
