@@ -33,6 +33,9 @@
         <meta-data
             android:name="com.google.android.gms.auth.GOOGLE_SIGN_IN_API_CLIENT_ID"
             android:value="768691636599-cfcrg52jotu9i9f4f99251bdrogovng8.apps.googleusercontent.com" />
+        <meta-data
+            android:name="com.google.android.gms.auth.api.signin.internal.DEFAULT_WEB_CLIENT_ID"
+            android:value="768691636599-hfor0s68b39vot0epefpnaio8dplv51u.apps.googleusercontent.com" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
