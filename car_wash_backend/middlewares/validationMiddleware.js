@@ -33,7 +33,7 @@ const validateCarRegister = [
   body('model').trim().notEmpty().withMessage('Modelo es obligatorio'),
   body('brand').trim().notEmpty().withMessage('Marca es obligatoria'),
   body('washType')
-    .isIn(['Básico', 'Premium', 'Completo', 'Detailing'])
+    .isIn(['Básico', 'Premium', 'Premium Plus', 'Completo', 'Detailing', 'Full Package'])
     .withMessage('Tipo de lavado inválido'),
   body('amount').isFloat({ min: 0.01 }).withMessage('Monto debe ser mayor a 0'),
 ];

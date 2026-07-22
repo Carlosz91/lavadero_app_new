@@ -4,7 +4,7 @@ const Payment = require('../models/paymentModel');
 const logger = require('../utils/logger');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/AppError');
 
-const VALID_WASH_TYPES = ['Básico', 'Premium', 'Completo', 'Detailing'];
+const VALID_WASH_TYPES = ['Básico', 'Premium', 'Premium Plus', 'Completo', 'Detailing', 'Full Package'];
 const VALID_STATUSES = ['Pendiente', 'En Progreso', 'Completado', 'Cancelado'];
 const VALID_TRANSITIONS = {
   'Pendiente': ['En Progreso', 'Cancelado'],
