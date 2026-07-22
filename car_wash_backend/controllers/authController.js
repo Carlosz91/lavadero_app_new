@@ -30,6 +30,9 @@ exports.registerUser = async (req, res, next) => {
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      if (!existingUser.password) {
+        throw new ValidationError('Esta cuenta está vinculada a Google. Inicia sesión con Google.');
+      }
       throw new ValidationError('El correo electrónico ya está registrado');
     }
 
@@ -73,6 +76,10 @@ exports.loginUser = async (req, res, next) => {
     const user = await User.findOne({ email });
     if (!user) {
       throw new UnauthorizedError('Credenciales inválidas');
+    }
+
+    if (!user.password) {
+      throw new UnauthorizedError('Esta cuenta usa Google. Inicia sesión con Google.');
     }
 
     if (user.isLocked()) {
@@ -142,6 +149,65 @@ exports.refreshToken = async (req, res, next) => {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return next(new UnauthorizedError('Token inválido o expirado'));
     }
+    next(err);
+  }
+};
+
+/**
+ * @desc    Inicia sesión con Google OAuth. Verifica idToken y crea usuario si no existe.
+ * @route   POST /api/auth/google
+ * @access  Público
+ */
+exports.googleLogin = async (req, res, next) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      throw new ValidationError('Token de Google requerido');
+    }
+
+    const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    const data = await response.json();
+
+    if (!response.ok || data.error) {
+      throw new UnauthorizedError('Token de Google inválido');
+    }
+
+    const googleId = data.sub;
+    const email = data.email;
+    const name = data.name || email.split('@')[0];
+
+    let user = await User.findOne({ googleId });
+    if (!user) {
+      user = await User.findOne({ email });
+      if (user) {
+        user.googleId = googleId;
+        await user.save();
+      } else {
+        const userCount = await User.countDocuments();
+        const role = userCount === 0 ? 'admin' : 'user';
+        user = new User({ email, name, googleId, role });
+        await user.save();
+      }
+    }
+
+    const token = generateToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id);
+
+    logger.info('Login con Google exitoso', { userId: user._id, email });
+
+    res.status(200).json({
+      message: 'Inicio de sesión exitoso',
+      token,
+      refreshToken,
+      userId: user._id,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    });
+  } catch (err) {
     next(err);
   }
 };

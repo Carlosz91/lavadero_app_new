@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
@@ -85,6 +86,57 @@ class LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _googleLogin() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account == null) return;
+
+      final GoogleSignInAuthentication auth = await account.authentication;
+      if (auth.idToken == null) {
+        setState(() => _errorMessage = 'No se pudo obtener el token de Google');
+        return;
+      }
+
+      setState(() { _isLoading = true; _errorMessage = null; });
+
+      final data = await _httpService.post(
+        '${ApiConfig.baseUrl}/api/auth/google',
+        {'idToken': auth.idToken},
+      );
+
+      await storage.write(key: 'token', value: data['token']);
+      _httpService.setAuthToken(data['token']);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userId', data['userId']);
+      await prefs.setString('userEmail', account.email);
+      await prefs.setString('token', data['token']);
+      final role = data['user']?['role'] ?? 'user';
+      await prefs.setString('role', role);
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomeScreen(userEmail: account.email),
+        ),
+      );
+    } on HttpException catch (e) {
+      if (!mounted) return;
+      setState(() { _errorMessage = e.message; });
+    } on UnauthorizedException catch (e) {
+      if (!mounted) return;
+      setState(() { _errorMessage = e.message; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _errorMessage = 'Error al iniciar con Google. Intenta nuevamente.'; });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _navigateToRegister() {
     Navigator.push(
       context,
@@ -130,8 +182,10 @@ class LoginScreenState extends State<LoginScreen> {
                     StaggeredFadeIn(index: 6, child: _buildLoginButton()),
                     const SizedBox(height: 24),
                     StaggeredFadeIn(index: 7, child: _buildDivider()),
+                    const SizedBox(height: 16),
+                    StaggeredFadeIn(index: 8, child: _buildGoogleButton()),
                     const SizedBox(height: 24),
-                    StaggeredFadeIn(index: 8, child: _buildRegisterLink()),
+                    StaggeredFadeIn(index: 9, child: _buildRegisterLink()),
                     const SizedBox(height: 24),
                   ],
                 ),
@@ -242,6 +296,26 @@ class LoginScreenState extends State<LoginScreen> {
         ),
         const Expanded(child: Divider()),
       ],
+    );
+  }
+
+  Widget _buildGoogleButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: _isLoading ? null : _googleLogin,
+        icon: Image.network(
+          'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+          height: 20,
+        ),
+        label: const Text('Continuar con Google'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textPrimary,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
     );
   }
 

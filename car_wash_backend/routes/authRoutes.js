@@ -85,6 +85,9 @@ router.post(
   authController.loginUser
 );
 
+// ✅ Endpoint para login con Google
+router.post('/google', authController.googleLogin);
+
 // ✅ Endpoint para refresh token
 router.post('/refresh', authController.refreshToken);
 

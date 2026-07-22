@@ -12,8 +12,13 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
-    minlength: 8, // ✅ Cambiar de 6 a 8
+    required: false,
+    minlength: 8,
+  },
+  googleId: {
+    type: String,
+    default: null,
+    index: true,
   },
   name: {
     type: String,
@@ -49,10 +54,7 @@ const userSchema = new mongoose.Schema({
 
 // Middleware para hashear la contraseña antes de guardar
 userSchema.pre('save', async function (next) {
-  // Si la contraseña no se modificó, no es necesario procesarla de nuevo
-  if (!this.isModified('password')) return next();
-  
-  // Hasheamos la contraseña antes de guardarla
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
