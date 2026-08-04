@@ -17,6 +17,7 @@ describe('POST /api/cars/registercar', () => {
     const res = await request(app)
       .post('/api/cars/registercar')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `idem-${Date.now()}-1`)
       .send({ plate: 'XYZ-5678', brand: 'Honda', model: 'Civic', washType: 'Básico', amount: 80 })
       .expect(201);
 
@@ -71,6 +72,7 @@ describe('GET /api/cars/status/:userId', () => {
     await request(app)
       .post('/api/cars/registercar')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `idem-${Date.now()}-2`)
       .send({ plate: 'ABC-1234', brand: 'Toyota', model: 'Corolla', washType: 'Premium', amount: 150 });
   });
 
@@ -108,6 +110,7 @@ describe('PUT /api/cars/update-status/:carId', () => {
     const carRes = await request(app)
       .post('/api/cars/registercar')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `idem-${Date.now()}-3`)
       .send({ plate: 'ABC-1234', brand: 'Toyota', model: 'Corolla', washType: 'Premium', amount: 150 });
 
     carId = carRes.body.car._id;
@@ -154,6 +157,7 @@ describe('PUT /api/cars/close-car/:carId', () => {
     const carRes = await request(app)
       .post('/api/cars/registercar')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `idem-${Date.now()}-4`)
       .send({ plate: 'ABC-1234', brand: 'Toyota', model: 'Corolla', washType: 'Premium', amount: 150 });
 
     carId = carRes.body.car._id;
@@ -196,6 +200,7 @@ describe('GET /api/cars/stats/:userId', () => {
     await request(app)
       .post('/api/cars/registercar')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `idem-${Date.now()}-5`)
       .send({ plate: 'ABC-1234', brand: 'Toyota', model: 'Corolla', washType: 'Premium', amount: 150 });
   });
 

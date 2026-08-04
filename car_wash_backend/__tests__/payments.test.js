@@ -17,6 +17,7 @@ describe('POST /api/payments', () => {
     const res = await request(app)
       .post('/api/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `pay-${Date.now()}-1`)
       .send({ plate: 'XYZ-5678', method: 'Tarjeta', amount: 200 })
       .expect(201);
 
@@ -34,6 +35,7 @@ describe('POST /api/payments', () => {
     await request(app)
       .post('/api/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `pay-${Date.now()}-2`)
       .send({ plate: 'XYZ-5678', method: 'Cripto', amount: 200 })
       .expect(400);
   });
@@ -42,6 +44,7 @@ describe('POST /api/payments', () => {
     await request(app)
       .post('/api/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `pay-${Date.now()}-3`)
       .send({ plate: 'XYZ-5678' })
       .expect(400);
   });
@@ -60,6 +63,7 @@ describe('GET /api/payments', () => {
     await request(app)
       .post('/api/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `pay-${Date.now()}-4`)
       .send({ plate: 'ABC-1234', method: 'Efectivo', amount: 150 });
   });
 
@@ -92,6 +96,7 @@ describe('GET /api/payments/user/:userId', () => {
     await request(app)
       .post('/api/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `pay-${Date.now()}-5`)
       .send({ plate: 'ABC-1234', method: 'Efectivo', amount: 150 });
   });
 
@@ -133,6 +138,7 @@ describe('PUT /api/payments/:id', () => {
     const payRes = await request(app)
       .post('/api/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `pay-${Date.now()}-6`)
       .send({ plate: 'ABC-1234', method: 'Efectivo', amount: 150 });
 
     paymentId = payRes.body._id;

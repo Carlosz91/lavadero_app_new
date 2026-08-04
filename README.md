@@ -1,5 +1,8 @@
 # 🚗 Lavadero App
 
+[![Backend CI](https://github.com/Carlosz91/lavadero_app_new/actions/workflows/backend.yml/badge.svg)](https://github.com/Carlosz91/lavadero_app_new/actions/workflows/backend.yml)
+[![Flutter CI](https://github.com/Carlosz91/lavadero_app_new/actions/workflows/flutter.yml/badge.svg)](https://github.com/Carlosz91/lavadero_app_new/actions/workflows/flutter.yml)
+
 Aplicación móvil para la gestión de lavaderos de vehículos. Permite registrar autos, seguir el estado del lavado en tiempo real, gestionar pagos y administrar el flujo de trabajo.
 
 ## Stack
@@ -26,7 +29,8 @@ Aplicación móvil para la gestión de lavaderos de vehículos. Permite registra
 - **Sistema de diseño** — tema personalizado con colores, tipografía y 9 componentes reutilizables
 - **Animaciones** — fondo con gotas animadas, logo flotante, fade-in escalonado en todas las pantallas
 - **API REST** documentada con Swagger en `http://localhost:5000/api/docs`
-- **Seguridad** — JWT, Helmet CSP, rate limiting, sanitize, validación, bloqueo por fuerza bruta
+- **Seguridad** — JWT, Helmet CSP, rate limiting, sanitize, validación, bloqueo por fuerza bruta, idempotencia en POST (Idempotency-Key)
+- **CI/CD** — GitHub Actions: tests backend + analyze Flutter en cada push
 
 ## Instalación
 
