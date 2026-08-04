@@ -58,6 +58,7 @@ const {
 router.post(
   '/',
   verifyToken,
+  verifyToken.requireRole('admin', 'staff'),
   idempotencyMiddleware,
   validatePaymentCreate,
   handleValidationErrors,

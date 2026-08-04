@@ -89,17 +89,6 @@ app.get('/health', async (req, res) => {
   });
 });
 
-app.get('/api/routes-check', (req, res) => {
-  res.json({
-    auth: '/api/auth',
-    cars: '/api/cars',
-    payments: '/api/payments',
-    admin: '/api/admin',
-    docs: '/api/docs',
-    health: '/health',
-  });
-});
-
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

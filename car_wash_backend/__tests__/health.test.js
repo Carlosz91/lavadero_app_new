@@ -18,16 +18,12 @@ describe('GET /health', () => {
 });
 
 describe('GET /api/routes-check', () => {
-  test('returns all routes', async () => {
+  test('is removed for security (returns 404)', async () => {
     const res = await request(app)
       .get('/api/routes-check')
-      .expect(200);
+      .expect(404);
 
-    expect(res.body).toHaveProperty('auth');
-    expect(res.body).toHaveProperty('cars');
-    expect(res.body).toHaveProperty('payments');
-    expect(res.body).toHaveProperty('admin');
-    expect(res.body).toHaveProperty('docs');
+    expect(res.body.error).toBe('Ruta no encontrada');
   });
 });
 

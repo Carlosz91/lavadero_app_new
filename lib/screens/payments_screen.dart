@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
@@ -44,8 +43,8 @@ class _PaymentsScreenState extends State<PaymentsScreen>
   }
 
   Future<void> _loadUserIdAndFetch() async {
-    final prefs = await SharedPreferences.getInstance();
-    _userId = prefs.getString('userId');
+    final httpService = HttpService();
+    _userId = await httpService.getUserId();
     if (_userId != null) {
       _fetchAll();
     } else {

@@ -9,6 +9,7 @@ const idempotencyMiddleware = require('../middlewares/idempotencyMiddleware');
  * /api/stripe/create-checkout-session:
  *   post:
  *     summary: Crear sesión de pago Stripe
+ *     description: El monto siempre proviene del pago existente (creado por el sistema o admin), nunca del cliente
  *     tags: [Stripe]
  *     security:
  *       - bearerAuth: []
@@ -20,21 +21,23 @@ const idempotencyMiddleware = require('../middlewares/idempotencyMiddleware');
  *         application/json:
  *           schema:
  *             type: object
- *             required: [carId, amount]
+ *             required: [paymentId]
  *             properties:
- *               carId:
+ *               paymentId:
  *                 type: string
  *                 example: 60d5f484f1a2c8b1f8e4e1a1
- *               amount:
- *                 type: number
- *                 example: 150000
+ *               description:
+ *                 type: string
+ *                 example: Lavado de vehículo ABC-1234
  *     responses:
  *       200:
  *         description: URL de checkout generada
  *       400:
- *         description: Datos inválidos
+ *         description: Datos inválidos (paymentId requerido, pago ya procesado)
  *       401:
  *         description: No autorizado
+ *       403:
+ *         description: No tienes permiso para pagar este pago
  *       409:
  *         description: Solicitud duplicada (misma Idempotency-Key)
  */

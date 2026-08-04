@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
@@ -55,6 +54,33 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   void initState() {
     super.initState();
     _checkAvailability(_scheduledDate);
+    _loadPrices();
+  }
+
+  Future<void> _loadPrices() async {
+    try {
+      final httpService = HttpService();
+      final data = await httpService.get('${ApiConfig.baseUrl}/api/cars/prices');
+      final prices = (data['prices'] as Map<String, dynamic>?) ?? {};
+      if (mounted) {
+        setState(() {
+          for (var i = 0; i < _washServices.length; i++) {
+            final price = prices[_washServices[i].name];
+            if (price is num) {
+              _washServices[i] = WashService(
+                _washServices[i].name,
+                price.toDouble(),
+                _washServices[i].icon,
+                _washServices[i].description,
+                _washServices[i].badge,
+              );
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('No se pudieron cargar los precios: $e');
+    }
   }
 
   @override
@@ -118,11 +144,10 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
     _idempotencyKey ??= _generateIdempotencyKey();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId');
+      final httpService = HttpService();
+      final userId = await httpService.getUserId();
       if (userId == null || userId.isEmpty) throw Exception('No se encontró el usuario. Inicia sesión nuevamente.');
 
-      final httpService = HttpService();
       await httpService.loadToken();
 
       final pendingData = await httpService.get('${ApiConfig.baseUrl}/api/payments?status=Pendiente');

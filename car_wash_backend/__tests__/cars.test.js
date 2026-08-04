@@ -48,12 +48,14 @@ describe('POST /api/cars/registercar', () => {
       .expect(400);
   });
 
-  test('rejects amount <= 0', async () => {
-    await request(app)
+  test('ignores client amount and uses server catalog price', async () => {
+    const res = await request(app)
       .post('/api/cars/registercar')
       .set('Authorization', `Bearer ${token}`)
-      .send({ plate: 'XYZ-5678', brand: 'Honda', model: 'Civic', washType: 'Básico', amount: 0 })
-      .expect(400);
+      .set('Idempotency-Key', `idem-${Date.now()}-amount`)
+      .send({ plate: 'XYZ-5678', brand: 'Honda', model: 'Civic', washType: 'Básico', amount: 1 });
+    expect(res.status).toBe(201);
+    expect(res.body.car.amount).toBe(50000);
   });
 });
 

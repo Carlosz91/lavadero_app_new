@@ -1,48 +1,41 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Payment = require('../models/paymentModel');
 const logger = require('../utils/logger');
-const { ValidationError } = require('../utils/AppError');
+const { ValidationError, ForbiddenError } = require('../utils/AppError');
 
 const HOST = process.env.STRIPE_REDIRECT_HOST || 'http://10.0.2.2:5000';
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
 /**
- * @desc    Crea sesión de pago Stripe. Reutiliza paymentId existente o crea uno nuevo.
+ * @desc    Crea sesión de pago Stripe. Requiere un paymentId existente (creado por el sistema o admin); el monto siempre proviene del pago, nunca del cliente.
  * @route   POST /api/stripe/create-checkout-session
  * @access  Private
  */
 exports.createCheckoutSession = async (req, res, next) => {
   try {
-    const { plate, amount, description, carId, paymentId } = req.body;
+    const { plate, description, paymentId } = req.body;
     const userId = req.user.id;
 
-    let payment;
-    if (paymentId) {
-      payment = await Payment.findById(paymentId);
-      if (!payment) {
-        throw new ValidationError('Pago no encontrado');
-      }
-      if (payment.status !== 'Pendiente') {
-        throw new ValidationError('Este pago ya fue procesado');
-      }
-    } else {
-      if (!plate || !amount || amount <= 0) {
-        throw new ValidationError('Placa y monto son requeridos');
-      }
+    if (!paymentId) {
+      throw new ValidationError('paymentId es requerido: el pago debe existir antes de iniciar el checkout');
+    }
 
-      payment = new Payment({
-        userId,
-        plate: plate.trim().toUpperCase(),
-        method: 'Stripe',
-        amount,
-        status: 'Pendiente',
-        carId: carId || null,
-      });
-      await payment.save();
+    const payment = await Payment.findById(paymentId);
+    if (!payment) {
+      throw new ValidationError('Pago no encontrado');
+    }
+
+    const isStaff = ['admin', 'staff'].includes(req.user.role);
+    if (!isStaff && payment.userId.toString() !== userId) {
+      throw new ForbiddenError('No tienes permiso para pagar este pago');
+    }
+
+    if (payment.status !== 'Pendiente') {
+      throw new ValidationError('Este pago ya fue procesado');
     }
 
     const finalPlate = payment.plate || plate;
-    const finalAmount = payment.amount || amount;
+    const finalAmount = payment.amount;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -64,7 +57,7 @@ exports.createCheckoutSession = async (req, res, next) => {
       metadata: { paymentId: payment._id.toString(), userId },
     });
 
-    logger.info('Checkout Stripe creado', { paymentId: payment._id, sessionId: session.id });
+    logger.info('Checkout Stripe creado', { paymentId: payment._id, sessionId: session.id, amount: finalAmount });
 
     res.status(201).json({
       paymentId: payment._id,

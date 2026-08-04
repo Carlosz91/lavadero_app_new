@@ -3,6 +3,7 @@ const router = express.Router();
 const carController = require('../controllers/carController');
 const verifyToken = require('../middlewares/verifyToken');
 const idempotencyMiddleware = require('../middlewares/idempotencyMiddleware');
+const { carRegisterLimiter } = require('../middlewares/rateLimitMiddleware');
 const {
   handleValidationErrors,
   validateCarRegister,
@@ -70,6 +71,7 @@ const {
 router.post(
   '/registercar',
   verifyToken,
+  carRegisterLimiter,
   idempotencyMiddleware,
   validateCarRegister,
   handleValidationErrors,
@@ -246,5 +248,31 @@ router.get(
   verifyToken,
   carController.checkAvailability
 );
+
+/**
+ * @swagger
+ * /api/cars/prices:
+ *   get:
+ *     summary: Obtener catálogo de precios oficial
+ *     tags: [Cars]
+ *     responses:
+ *       200:
+ *         description: Precios por tipo de lavado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 prices:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: number
+ *                 currency:
+ *                   type: string
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ */
+router.get('/prices', carController.getPrices);
 
 module.exports = router;

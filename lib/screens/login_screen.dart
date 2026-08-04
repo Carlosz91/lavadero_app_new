@@ -58,7 +58,7 @@ class LoginScreenState extends State<LoginScreen> {
         _httpService.setAuthToken(data['token']);
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userId', data['userId']);
+        await _httpService.saveUserId(data['userId']);
         await prefs.setString('userEmail', email);
         await prefs.setString('token', data['token']);
         final role = data['user']?['role'] ?? 'user';
@@ -112,7 +112,7 @@ class LoginScreenState extends State<LoginScreen> {
       _httpService.setAuthToken(data['token']);
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userId', data['userId']);
+      await _httpService.saveUserId(data['userId']);
       await prefs.setString('userEmail', account.email);
       await prefs.setString('token', data['token']);
       final role = data['user']?['role'] ?? 'user';

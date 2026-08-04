@@ -3,8 +3,8 @@ const User = require('../models/userModel');
 const Payment = require('../models/paymentModel');
 const logger = require('../utils/logger');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/AppError');
+const { VALID_WASH_TYPES, getPriceForWashType } = require('../config/priceCatalog');
 
-const VALID_WASH_TYPES = ['Básico', 'Premium', 'Premium Plus', 'Completo', 'Detailing', 'Full Package'];
 const VALID_STATUSES = ['Pendiente', 'En Progreso', 'Completado', 'Cancelado'];
 const VALID_TRANSITIONS = {
   'Pendiente': ['En Progreso', 'Cancelado'],
@@ -20,8 +20,13 @@ const VALID_TRANSITIONS = {
  */
 exports.registerCar = async (req, res, next) => {
   try {
-    const { plate, model, brand, washType, amount, scheduledDate, scheduledTime } = req.body;
+    const { plate, model, brand, washType, scheduledDate, scheduledTime } = req.body;
     const userId = req.user.id;
+
+    const serverPrice = getPriceForWashType(washType);
+    if (serverPrice === null) {
+      throw new ValidationError('Tipo de lavado inválido');
+    }
 
     const pendingPaymentCount = await Payment.countDocuments({ userId, status: 'Pendiente' });
     if (pendingPaymentCount > 0) {
@@ -53,7 +58,7 @@ exports.registerCar = async (req, res, next) => {
       model: model.trim(),
       brand: brand.trim(),
       washType,
-      amount,
+      amount: serverPrice,
       scheduledDate: scheduledDate || undefined,
       scheduledTime: scheduledTime || undefined,
       userId,
@@ -286,6 +291,24 @@ exports.checkAvailability = async (req, res, next) => {
       booked: count,
       available: Math.max(0, 5 - count),
       maxPerDay: 5,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * @desc    Devuelve el catálogo de precios oficial desde el servidor
+ * @route   GET /api/cars/prices
+ * @access  Public
+ */
+exports.getPrices = async (_req, res, next) => {
+  try {
+    const { WASH_TYPE_PRICES } = require('../config/priceCatalog');
+    res.status(200).json({
+      prices: WASH_TYPE_PRICES,
+      currency: 'PYG',
+      updatedAt: new Date().toISOString(),
     });
   } catch (err) {
     next(err);

@@ -182,6 +182,25 @@ class HttpService {
     _authToken = prefs.getString('token');
   }
 
+  /// ✅ Guardar userId en almacenamiento seguro
+  Future<void> saveUserId(String userId) async {
+    const storage = FlutterSecureStorage();
+    await storage.write(key: 'userId', value: userId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userId', userId);
+  }
+
+  /// ✅ Leer userId desde almacenamiento seguro (con fallback a prefs)
+  Future<String?> getUserId() async {
+    const storage = FlutterSecureStorage();
+    String? userId = await storage.read(key: 'userId');
+    if (userId == null || userId.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      userId = prefs.getString('userId');
+    }
+    return userId;
+  }
+
   /// ✅ Limpiar token (logout)
   void clearAuth() {
     _authToken = null;

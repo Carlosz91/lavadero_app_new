@@ -52,6 +52,24 @@ flutter pub get
 flutter run
 ```
 
+### Build release con ofuscación
+
+```bash
+flutter build apk --release --obfuscate --split-debug-info=build/symbols
+```
+
+- `--obfuscate` renombra símbolos de Dart para dificultar la ingeniería inversa
+- `--split-debug-info` guarda los mapas de símbolos (necesarios para leer stack traces)
+- Los símbolos se envían al backend (`.symbols` en el reporte de errores); no deben publicarse
+
+## Seguridad
+
+- **Precios server-side**: el cliente no envía montos; el backend calcula el precio desde `config/priceCatalog.js` (fuente de verdad) e ignora `amount` recibido
+- **Catálogo centralizado**: `GET /api/cars/prices` público para que la app muestre precios sin confiarlos
+- **Rate limits**: límites por IP (global) y por usuario (10 registros/hora en `registercar`)
+- **Idempotencia**: `Idempotency-Key` requerida en POST con replay 24h en MongoDB
+- **Credenciales**: token JWT y `userId` en FlutterSecureStorage (no en SharedPreferences)
+
 ### Crear admin manualmente
 
 ```bash

@@ -116,6 +116,16 @@ exports.updatePaymentStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status, method } = req.body;
 
+    const payment = await Payment.findById(id);
+    if (!payment) {
+      throw new NotFoundError('Pago');
+    }
+
+    const isStaff = ['admin', 'staff'].includes(req.user.role);
+    if (!isStaff && payment.userId.toString() !== req.user.id) {
+      throw new ForbiddenError('No tienes permiso para actualizar este pago');
+    }
+
     const updateData = { status };
     if (method) {
       if (!VALID_METHODS.includes(method)) {
@@ -130,11 +140,7 @@ exports.updatePaymentStatus = async (req, res, next) => {
       { new: true, runValidators: true }
     );
 
-    if (!updatedPayment) {
-      throw new NotFoundError('Pago');
-    }
-
-    logger.info('Pago actualizado', { paymentId: id, status, method: method || 'sin cambio' });
+    logger.info('Pago actualizado', { paymentId: id, status, method: method || 'sin cambio', by: req.user.id });
 
     res.status(200).json(updatedPayment);
   } catch (err) {

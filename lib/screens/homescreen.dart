@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _initData() async {
     final prefs = await SharedPreferences.getInstance();
-    _userId = prefs.getString('userId');
+    _userId = await _http.getUserId();
     _userName = prefs.getString('userName') ?? widget.userEmail.split('@').first;
     if (_userId != null) await _loadVehicles();
     if (mounted) setState(() => _loading = false);

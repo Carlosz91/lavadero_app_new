@@ -67,7 +67,7 @@ class RegisterScreenState extends State<RegisterScreen> {
       }
 
       final prefs = await SharedPreferences.getInstance();
-      if (userId != null) await prefs.setString('userId', userId);
+      if (userId != null) await httpService.saveUserId(userId);
       if (token != null) await prefs.setString('token', token);
       final role = userData?['role'] as String? ?? 'user';
       await prefs.setString('role', role);

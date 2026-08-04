@@ -35,7 +35,7 @@ const validateCarRegister = [
   body('washType')
     .isIn(['Básico', 'Premium', 'Premium Plus', 'Completo', 'Detailing', 'Full Package'])
     .withMessage('Tipo de lavado inválido'),
-  body('amount').isFloat({ min: 0.01 }).withMessage('Monto debe ser mayor a 0'),
+  body('amount').optional().isFloat({ min: 0.01 }).withMessage('Monto debe ser mayor a 0'),
 ];
 
 const validateCarStatusUpdate = [

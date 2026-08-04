@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 const isTest = () => process.env.NODE_ENV === 'test';
 
@@ -24,4 +25,12 @@ exports.registerLimiter = rateLimit({
   max: isTest() ? 0 : 3,
   message: 'Demasiados registros desde esta dirección IP',
   skip: isTest,
+});
+
+exports.carRegisterLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isTest() ? 0 : 10,
+  message: 'Demasiados vehículos registrados, intenta más tarde',
+  skip: isTest,
+  keyGenerator: (req) => (req.user ? `user:${req.user.id}` : ipKeyGenerator()(req)),
 });
