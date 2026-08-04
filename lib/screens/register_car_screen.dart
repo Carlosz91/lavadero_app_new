@@ -107,7 +107,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   String _generateIdempotencyKey() {
     final random = Random();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '${timestamp}-${random.nextInt(999999)}-${random.nextInt(999999)}';
+    return '$timestamp-${random.nextInt(999999)}-${random.nextInt(999999)}';
   }
 
   Future<void> _registerCar() async {
