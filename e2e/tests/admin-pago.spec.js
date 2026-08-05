@@ -123,8 +123,11 @@ test.describe('Admin panel - Flujo de pago', () => {
     const { url } = await sesion.json();
     expect(url).toContain('checkout.stripe.com');
 
-    // Ir al checkout de Stripe (test mode)
+    // Ir al checkout de Stripe (test mode). El goto devuelve antes de que
+    // cargue: esperamos el formulario de pago antes de capturar la pantalla.
     await page.goto(url);
+    await expect(page.locator('input[name="cardNumber"]')).toBeVisible();
+    await page.waitForTimeout(1000);
     await page.screenshot({ path: 'screenshots/11-stripe-checkout.png', fullPage: true });
 
     // El checkout redirige al success handler apenas se completa el pago:
@@ -135,6 +138,8 @@ test.describe('Admin panel - Flujo de pago', () => {
     await page.fill('input[name="cardExpiry"]', '12/34');
     await page.fill('input[name="cardCvc"]', '123');
     await page.fill('input[name="billingName"]', 'Cliente Test');
+    await page.waitForTimeout(500);
+    await page.locator('form').first().screenshot({ path: 'screenshots/11b-stripe-checkout-datos.png' });
     await page.getByTestId('hosted-payment-submit-button').click();
 
     const successReq = await redirect;
