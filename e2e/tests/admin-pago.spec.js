@@ -84,6 +84,7 @@ test.describe('Admin panel - Flujo de pago', () => {
     // El panel muestra el Resumen de Pagos con la tarjeta de pendientes
     await page.click('#sidebar a[onclick="navigate(\'reports\')"]');
     await expect(page.locator('#reportStats .stat-card').filter({ has: page.locator('.label', { hasText: /^Pendiente de Cobro$/ }) })).toBeVisible();
+    await page.screenshot({ path: 'screenshots/09-reportes-pendiente.png', fullPage: true });
   });
 
   test('marca el pago como Pagado (efectivo) y lo ve en Reportes', async ({ page, request }) => {
@@ -106,6 +107,7 @@ test.describe('Admin panel - Flujo de pago', () => {
     const cobrados = page.locator('#reportStats .stat-card').filter({ has: page.locator('.label', { hasText: /^Ingresos Cobrados$/ }) });
     await expect(cobrados).toBeVisible();
     await expect(cobrados).toContainText('Gs. ');
+    await page.screenshot({ path: 'screenshots/10-reportes-cobrado.png', fullPage: true });
   });
 
   test('paga un pedido con Stripe Checkout (modo test)', async ({ page, request }) => {
@@ -123,6 +125,7 @@ test.describe('Admin panel - Flujo de pago', () => {
 
     // Ir al checkout de Stripe (test mode)
     await page.goto(url);
+    await page.screenshot({ path: 'screenshots/11-stripe-checkout.png', fullPage: true });
 
     // El checkout redirige al success handler apenas se completa el pago:
     // interceptamos esa peticion para capturar el session_id
@@ -137,6 +140,7 @@ test.describe('Admin panel - Flujo de pago', () => {
     const successReq = await redirect;
     const sessionId = new URL(successReq.url()).searchParams.get('session_id');
     expect(sessionId).toBeTruthy();
+    await page.screenshot({ path: 'screenshots/12-stripe-pagado.png', fullPage: true });
 
     // El success handler verifica la sesión con Stripe y marca el pago como Pagado
     await request.get(`/api/stripe/success?session_id=${sessionId}`);

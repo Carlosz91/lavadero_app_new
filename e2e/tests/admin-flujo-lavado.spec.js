@@ -57,6 +57,7 @@ test.describe('Admin panel - Flujo completo de un lavado', () => {
     // 4) Esperar que aparezca la card con nuestra placa
     const card = page.locator('.pedido-card', { hasText: placa });
     await expect(card).toBeVisible();
+    await card.screenshot({ path: 'screenshots/06-pedido-pendiente.png' });
 
     // 5) Mover a En Progreso (aceptando el confirm)
     const progresoResp = page.waitForResponse(
@@ -65,6 +66,8 @@ test.describe('Admin panel - Flujo completo de un lavado', () => {
     aceptarConfirm(page);
     await card.locator('button:has-text("Mover a En Progreso")').click();
     expect((await progresoResp).ok()).toBeTruthy();
+    await expect(card.locator('.badge')).toHaveText('En Progreso');
+    await card.screenshot({ path: 'screenshots/07-pedido-en-progreso.png' });
 
     // 6) Cerrar pedido como Completado (genera el pago pendiente)
     const cerrarResp = page.waitForResponse(
@@ -77,5 +80,6 @@ test.describe('Admin panel - Flujo completo de un lavado', () => {
     // 7) Verificar el estado final en la card
     await expect(card.locator('.completed-msg')).toHaveText('Pedido completado');
     await expect(card.locator('.badge')).toHaveText('Completado');
+    await card.screenshot({ path: 'screenshots/08-pedido-completado.png' });
   });
 });
