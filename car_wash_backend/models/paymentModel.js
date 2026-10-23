@@ -8,6 +8,9 @@ const paymentSchema = new mongoose.Schema({
   status: { type: String, default: 'Pendiente', enum: ['Pendiente', 'Pagado', 'Cancelado', 'Reembolsado'] },
   date: { type: Date, default: Date.now },
   carId: { type: mongoose.Schema.Types.ObjectId, ref: 'Car', default: null },
+  // Id de la sesión de Checkout Stripe activa: permite reusar el checkout en
+  // reintentos y detectar cobros ya realizados (evita doble cobro).
+  checkoutSessionId: { type: String, default: null },
 }, { timestamps: true });
 
 paymentSchema.index({ userId: 1, date: -1 });

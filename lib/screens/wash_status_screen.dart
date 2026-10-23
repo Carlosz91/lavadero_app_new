@@ -1,22 +1,26 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatters.dart';
 import '../widgets/custom_widgets.dart';
 import '../widgets/water_animation.dart';
+import 'register_car_screen.dart';
 
-class WashStatusScreen extends StatefulWidget {
+/// Página embebible con el estado de lavado. Sin Scaffold ni AppBar: la usa la
+/// barra inferior del shell, que le provee destino y la posiciones del sistema.
+class WashStatusView extends StatefulWidget {
   final String userId;
 
-  const WashStatusScreen({super.key, required this.userId});
+  const WashStatusView({super.key, required this.userId});
 
   @override
-  State<WashStatusScreen> createState() => _WashStatusScreenState();
+  State<WashStatusView> createState() => _WashStatusViewState();
 }
 
-class _WashStatusScreenState extends State<WashStatusScreen> {
+class _WashStatusViewState extends State<WashStatusView> {
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
@@ -41,7 +45,7 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
     if (widget.userId.isEmpty) {
       setState(() {
         _hasError = true;
-        _errorMessage = 'ID de usuario inv\u00e1lido';
+        _errorMessage = 'ID de usuario inválido';
         _isLoading = false;
       });
       return;
@@ -91,11 +95,11 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
       });
     } on UnauthorizedException {
       if (!mounted) return;
-      _httpService.clearAuth();
+      await _httpService.clearAuth();
       setState(() {
         _isLoading = false;
         _hasError = true;
-        _errorMessage = 'Sesi\u00f3n expirada. Por favor, inicia sesi\u00f3n de nuevo';
+        _errorMessage = 'Sesión expirada. Por favor, inicia sesión de nuevo';
       });
     } on HttpException catch (e) {
       if (!mounted) return;
@@ -138,14 +142,14 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
       final dateTime = DateTime.parse(dateString);
       return DateFormat('dd/MM/yyyy HH:mm').format(dateTime);
     } catch (e) {
-      return 'Fecha inv\u00e1lida';
+      return 'Fecha inválida';
     }
   }
 
   String _formatCurrency(dynamic amount) {
-    if (amount == null) return 'Gs. 0';
+    if (amount == null) return formatGs(0);
     final num value = amount is String ? double.tryParse(amount) ?? 0 : amount;
-    return 'Gs. ${value.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+    return formatGs(value);
   }
 
   List<Map<String, dynamic>> _getFilteredCars() {
@@ -163,56 +167,104 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
   Widget build(BuildContext context) {
     final filteredCars = _getFilteredCars();
 
-    return Scaffold(
-      appBar: GradientAppBar(
-        title: 'Estado de Lavado',
-        actions: [
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: _isLoading
+              ? const SkeletonList(count: 4)
+              : _hasError
+                  ? ErrorState(message: _errorMessage, onRetry: _fetchCarsStatus)
+                  : _cars.isEmpty
+                      ? _buildEmptyState()
+                      : WaterBackground(
+                          child: RefreshIndicator(
+                            onRefresh: _fetchCarsStatus,
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                              child: Column(
+                                children: [
+                                  StaggeredFadeIn(index: 0, child: _buildStatsCard()),
+                                  const SizedBox(height: 20),
+                                  StaggeredFadeIn(index: 1, child: _buildStatusChips()),
+                                  const SizedBox(height: 20),
+                                  if (filteredCars.isEmpty)
+                                    _buildNoFilteredState()
+                                  else
+                                    Column(
+                                      children: filteredCars
+                                          .asMap()
+                                          .entries
+                                          .map((e) => Padding(
+                                                padding: const EdgeInsets.only(bottom: 12),
+                                                child: StaggeredFadeIn(
+                                                  index: 2 + e.key,
+                                                  child: _buildCarCard(e.value),
+                                                ),
+                                              ))
+                                          .toList(),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+        ),
+      ],
+    );
+  }
+
+  /// Header de página pintado sobre el gradiente de marca. El shell no tiene
+  /// AppBar, así que este absorbe el inset de la barra de estado.
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.primaryDark],
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        MediaQuery.of(context).padding.top + 14,
+        12,
+        16,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Estado del lavado',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Seguí tu vehículo en tiempo real',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+            ),
+          ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             onPressed: () => _fetchCarsStatus(),
             tooltip: 'Actualizar',
           ),
         ],
       ),
-      body: _isLoading
-          ? const LoadingState(message: 'Cargando estado de lavado...')
-          : _hasError
-              ? ErrorState(message: _errorMessage, onRetry: _fetchCarsStatus)
-              : _cars.isEmpty
-                  ? _buildEmptyState()
-                  : WaterBackground(
-                      child: RefreshIndicator(
-                        onRefresh: _fetchCarsStatus,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              StaggeredFadeIn(index: 0, child: _buildStatsCard()),
-                              const SizedBox(height: 20),
-                              StaggeredFadeIn(index: 1, child: _buildStatusChips()),
-                              const SizedBox(height: 20),
-                              if (filteredCars.isEmpty)
-                                _buildNoFilteredState()
-                              else
-                                Column(
-                                  children: filteredCars
-                                      .asMap()
-                                      .entries
-                                      .map((e) => Padding(
-                                            padding: const EdgeInsets.only(bottom: 12),
-                                            child: StaggeredFadeIn(
-                                              index: 2 + e.key,
-                                              child: _buildCarCard(e.value),
-                                            ),
-                                          ))
-                                      .toList(),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
     );
   }
 
@@ -252,9 +304,9 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
         children: [
           _buildStatItem(Icons.access_time, 'Pendientes', pending, AppColors.warning),
           _buildStatItem(
-              Icons.autorenew, 'En Progreso', inProgress, Colors.lightBlueAccent),
+              Icons.autorenew, 'En Progreso', inProgress, AppColors.primaryLight),
           _buildStatItem(
-              Icons.check_circle, 'Completados', completed, Colors.lightGreen),
+              Icons.check_circle, 'Completados', completed, AppColors.success),
         ],
       ),
     );
@@ -265,11 +317,11 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
+          decoration: const BoxDecoration(
+            color: Colors.white24,
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: color, size: 22),
+          child: Icon(icon, color: Colors.white, size: 22),
         ),
         const SizedBox(height: 8),
         Text(
@@ -348,75 +400,72 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
   Widget _buildCarCard(Map<String, dynamic> car) {
     final status = car['status']?.toString() ?? 'Pendiente';
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  car['plate'] ?? 'N/D',
-                  style: AppTextStyles.h2.copyWith(
-                    color: AppColors.primary,
-                    letterSpacing: 1,
-                  ),
+    return AppCard(
+      padding: const EdgeInsets.all(18),
+      onTap: () => _showCarDetails(car),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                car['plate'] ?? 'N/D',
+                style: AppTextStyles.h2.copyWith(
+                  color: AppColors.primary,
+                  letterSpacing: 1,
                 ),
-                StatusBadge(status: status),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
-            _buildCarInfo(
-              Icons.directions_car,
-              '${car['brand'] ?? 'N/D'} ${car['model'] ?? 'N/D'}',
-              'Veh\u00edculo',
-            ),
-            const SizedBox(height: 12),
-            _buildCarInfo(
-              Icons.local_car_wash,
-              car['washType'] ?? 'N/D',
-              'Tipo de lavado',
-            ),
-            const SizedBox(height: 12),
-            _buildCarInfo(
-              Icons.attach_money,
-              _formatCurrency(car['amount']),
-              'Monto',
-              valueColor: AppColors.success,
-            ),
-            if (car['scheduledDate'] != null) ...[
-              const SizedBox(height: 12),
-              _buildCarInfo(
-                Icons.calendar_today,
-                '${_formatDate(car['scheduledDate'])} ${car['scheduledTime'] ?? ''}',
-                'Agendado',
-                valueColor: AppColors.warning,
               ),
+              StatusBadge(status: status),
             ],
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildDateInfo('Registrado', _formatDate(car['createdAt'])),
-                _buildDateInfo('Actualizado', _formatDate(car['updatedAt'])),
-              ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          _buildCarInfo(
+            Icons.directions_car,
+            '${car['brand'] ?? 'N/D'} ${car['model'] ?? 'N/D'}',
+            'Vehículo',
+          ),
+          const SizedBox(height: 12),
+          _buildCarInfo(
+            Icons.local_car_wash,
+            car['washType'] ?? 'N/D',
+            'Tipo de lavado',
+          ),
+          const SizedBox(height: 12),
+          _buildCarInfo(
+            Icons.attach_money,
+            _formatCurrency(car['amount']),
+            'Monto',
+            valueColor: AppColors.success,
+          ),
+          if (car['scheduledDate'] != null) ...[
+            const SizedBox(height: 12),
+            _buildCarInfo(
+              Icons.calendar_today,
+              '${_formatDate(car['scheduledDate'])} ${car['scheduledTime'] ?? ''}',
+              'Agendado',
+              valueColor: AppColors.warning,
             ),
           ],
-        ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildDateInfo('Registrado', _formatDate(car['createdAt'])),
+              _buildDateInfo('Actualizado', _formatDate(car['updatedAt'])),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  void _showCarDetails(Map<String, dynamic> car) {
+    AppSnackBar.info(context, 'Lavado en estado "${car['status'] ?? 'N/D'}"');
   }
 
   Widget _buildCarInfo(
@@ -462,10 +511,13 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
   Widget _buildEmptyState() {
     return EmptyState(
       icon: Icons.local_car_wash,
-      title: 'No hay veh\u00edculos registrados',
-      subtitle: 'Cuando registres tu veh\u00edculo,\npodr\u00e1s ver su estado de lavado aqu\u00ed.',
-      actionLabel: 'Registrar veh\u00edculo',
-      onAction: () => Navigator.pop(context),
+      title: 'No hay vehículos registrados',
+      subtitle: 'Cuando registres tu vehículo,\npodrás ver su estado de lavado aquí.',
+      actionLabel: 'Registrar vehículo',
+      onAction: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const RegisterCarScreen()),
+      ),
     );
   }
 
@@ -481,7 +533,7 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
               color: AppColors.inputFill,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.filter_list,
               size: 48,
               color: AppColors.textHint,
@@ -489,11 +541,27 @@ class _WashStatusScreenState extends State<WashStatusScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No hay veh\u00edculos con este filtro',
+            'No hay vehículos con este filtro',
             style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Wrapper standalone por compatibilidad: Scaffold + AppBar con gradiente
+/// alrededor de la misma página embebible.
+class WashStatusScreen extends StatelessWidget {
+  final String userId;
+
+  const WashStatusScreen({super.key, required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: GradientAppBar(title: 'Estado de Lavado'),
+      body: WashStatusView(userId: userId),
     );
   }
 }

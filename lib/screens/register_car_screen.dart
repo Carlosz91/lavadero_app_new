@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatters.dart';
 import '../widgets/custom_widgets.dart';
 import '../widgets/water_animation.dart';
 
@@ -60,7 +61,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   Future<void> _loadPrices() async {
     try {
       final httpService = HttpService();
-      final data = await httpService.get('${ApiConfig.baseUrl}/api/cars/prices');
+      final data = await httpService.get(ApiConfig.carsPricesUrl);
       final prices = (data['prices'] as Map<String, dynamic>?) ?? {};
       if (mounted) {
         setState(() {
@@ -98,7 +99,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
       final httpService = HttpService();
       await httpService.loadToken();
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      final data = await httpService.get('${ApiConfig.baseUrl}${ApiConfig.carsAvailability}?date=$dateStr');
+      final data = await httpService.get('${ApiConfig.carsAvailabilityUrl}?date=$dateStr');
       if (mounted) setState(() => _availableSlots = data['available'] as int? ?? 5);
     } catch (_) {
       if (mounted) setState(() => _availableSlots = 5);
@@ -139,27 +140,29 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   Future<void> _registerCar() async {
     setState(() { _isLoading = true; _errorMessage = null; });
 
-    if (_availableSlots <= 0) { _setError('No hay cupos disponibles para esta fecha'); return; }
-
-    _idempotencyKey ??= _generateIdempotencyKey();
-
     try {
+      if (_availableSlots <= 0) {
+        throw Exception('No hay cupos disponibles para esta fecha');
+      }
+
+      _idempotencyKey ??= _generateIdempotencyKey();
+
       final httpService = HttpService();
       final userId = await httpService.getUserId();
       if (userId == null || userId.isEmpty) throw Exception('No se encontró el usuario. Inicia sesión nuevamente.');
 
       await httpService.loadToken();
 
-      final pendingData = await httpService.get('${ApiConfig.baseUrl}/api/payments?status=Pendiente');
+      final pendingData = await httpService.get('${ApiConfig.paymentsUrl}?status=Pendiente');
       final pendingList = (pendingData['data'] as List?) ?? [];
       if (pendingList.isNotEmpty) throw Exception('Tenés un pago pendiente. Pagalo antes de registrar otro vehículo.');
 
-      await httpService.post('${ApiConfig.baseUrl}${ApiConfig.carsRegister}', {
+      await httpService.post(ApiConfig.carsRegisterUrl, {
         'plate': _plateController.text.trim().toUpperCase(),
         'model': _modelController.text.trim(),
         'brand': _brandController.text.trim(),
+        'color': _selectedColor,
         'washType': _selectedWashType,
-        'amount': _selectedPrice,
         'scheduledDate': '${_scheduledDate.year}-${_scheduledDate.month.toString().padLeft(2, '0')}-${_scheduledDate.day.toString().padLeft(2, '0')}',
         'scheduledTime': '${_scheduledTime.hour.toString().padLeft(2, '0')}:${_scheduledTime.minute.toString().padLeft(2, '0')}',
         'userId': userId,
@@ -210,7 +213,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
   Widget _buildHeader() {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF0D47A1), Color(0xFF00BCD4)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryDark], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
       ),
@@ -352,7 +355,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppColors.inputFill,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
       ),
@@ -414,7 +417,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
                 ),
               ),
               const SizedBox(width: 6),
-              Text('Gs. ${service.price.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isSelected ? AppColors.primary : AppColors.textPrimary)),
+              Text(formatGs(service.price), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isSelected ? AppColors.primary : AppColors.textPrimary)),
               if (isSelected) ...[
                 const SizedBox(width: 4),
                 Container(
@@ -529,7 +532,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(fontSize: isTotal ? 16 : 14, fontWeight: isTotal ? FontWeight.bold : FontWeight.normal, color: isTotal ? AppColors.textPrimary : AppColors.textSecondary)),
-          Text('Gs. ${amount.toStringAsFixed(0)}', style: TextStyle(fontSize: isTotal ? 16 : 14, fontWeight: isTotal ? FontWeight.bold : FontWeight.w500)),
+          Text(formatGs(amount), style: TextStyle(fontSize: isTotal ? 16 : 14, fontWeight: isTotal ? FontWeight.bold : FontWeight.w500)),
         ],
       ),
     );

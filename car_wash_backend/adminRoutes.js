@@ -96,4 +96,37 @@ const adminController = require('./controllers/adminController');
 router.get('/dashboard', verifyToken, requireRole('admin'), adminController.getDashboard);
 router.get('/users/search', verifyToken, requireRole('admin'), adminController.searchUsers);
 
+/**
+ * @swagger
+ * /api/admin/reports:
+ *   get:
+ *     summary: Reportes administrativos con rango de fechas y movimientos
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha inicial (YYYY-MM-DD). Sin from/to usa el mes en curso.
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha final (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Resumen, serie diaria y movimientos del rango
+ *       400:
+ *         description: Rango inválido
+ *       401:
+ *         description: No autorizado
+ *       403:
+ *         description: Se requiere rol de admin
+ */
+router.get('/reports', verifyToken, requireRole('admin'), adminController.getReports);
+
 module.exports = router;

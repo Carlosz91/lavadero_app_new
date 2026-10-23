@@ -4,6 +4,7 @@ import 'dart:async';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatters.dart';
 import '../widgets/custom_widgets.dart';
 import '../widgets/water_animation.dart';
 import 'login_screen.dart';
@@ -50,7 +51,7 @@ class RegisterScreenState extends State<RegisterScreen> {
     try {
       final httpService = HttpService();
       final response = await httpService.post(
-        '${ApiConfig.baseUrl}${ApiConfig.authRegister}',
+        ApiConfig.authRegisterUrl,
         {
           'email': _emailController.text.trim(),
           'password': _passwordController.text,
@@ -59,19 +60,22 @@ class RegisterScreenState extends State<RegisterScreen> {
       );
 
       final token = response['token'] as String?;
-      final userData = response['user'] as Map<String, dynamic>?;
-      final userId = userData?['_id'] as String? ?? response['userId'] as String?;
+      final refreshToken = response['refreshToken'] as String? ?? '';
+      final email = _emailController.text.trim();
 
-      if (token != null) {
-        httpService.setAuthToken(token);
+      if (token == null) {
+        _setError('No se recibió el token de sesión');
+        return;
       }
 
       final prefs = await SharedPreferences.getInstance();
+      final userId = response['userId'] as String?;
+      await httpService.saveAuthData(token, refreshToken);
       if (userId != null) await httpService.saveUserId(userId);
-      if (token != null) await prefs.setString('token', token);
-      final role = userData?['role'] as String? ?? 'user';
-      await prefs.setString('role', role);
-
+      await prefs.setString('userEmail', email);
+      await prefs.setString('userName', _nameController.text.trim());
+      final role = response['user']?['role'] as String?;
+      await prefs.setString('role', role ?? 'user');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -168,7 +172,7 @@ class RegisterScreenState extends State<RegisterScreen> {
               ),
             ],
           ),
-          child: const Icon(Icons.person_add, size: 44, color: Colors.white),
+          child: const Icon(Icons.person_add_rounded, size: 44, color: Colors.white),
         ),
         const SizedBox(height: 20),
         Text(
@@ -189,7 +193,7 @@ class RegisterScreenState extends State<RegisterScreen> {
       controller: _nameController,
       decoration: const InputDecoration(
         labelText: 'Nombre completo',
-        prefixIcon: Icon(Icons.person),
+        prefixIcon: Icon(Icons.person_rounded),
       ),
       textCapitalization: TextCapitalization.words,
       validator: (value) {
@@ -209,14 +213,14 @@ class RegisterScreenState extends State<RegisterScreen> {
       controller: _emailController,
       decoration: const InputDecoration(
         labelText: 'Correo electr\u00f3nico',
-        prefixIcon: Icon(Icons.email),
+        prefixIcon: Icon(Icons.email_rounded),
       ),
       keyboardType: TextInputType.emailAddress,
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
           return 'Por favor ingresa tu email';
         }
-        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
+        if (!isValidEmail(value)) {
           return 'Ingresa un email v\u00e1lido';
         }
         return null;
@@ -230,7 +234,7 @@ class RegisterScreenState extends State<RegisterScreen> {
       obscureText: !_isPasswordVisible,
       decoration: InputDecoration(
         labelText: 'Contrase\u00f1a',
-        prefixIcon: const Icon(Icons.lock),
+        prefixIcon: const Icon(Icons.lock_rounded),
         suffixIcon: IconButton(
           icon: Icon(
             _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
@@ -257,7 +261,7 @@ class RegisterScreenState extends State<RegisterScreen> {
       obscureText: !_isConfirmPasswordVisible,
       decoration: InputDecoration(
         labelText: 'Confirmar contrase\u00f1a',
-        prefixIcon: const Icon(Icons.lock_outline),
+        prefixIcon: const Icon(Icons.lock_outline_rounded),
         suffixIcon: IconButton(
           icon: Icon(
             _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,

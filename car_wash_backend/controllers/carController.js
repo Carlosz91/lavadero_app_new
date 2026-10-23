@@ -20,7 +20,7 @@ const VALID_TRANSITIONS = {
  */
 exports.registerCar = async (req, res, next) => {
   try {
-    const { plate, model, brand, washType, scheduledDate, scheduledTime } = req.body;
+    const { plate, model, brand, color, washType, scheduledDate, scheduledTime } = req.body;
     const userId = req.user.id;
 
     const serverPrice = getPriceForWashType(washType);
@@ -57,6 +57,7 @@ exports.registerCar = async (req, res, next) => {
       plate: plate.trim().toUpperCase(),
       model: model.trim(),
       brand: brand.trim(),
+      color: color ? String(color).trim() : undefined,
       washType,
       amount: serverPrice,
       scheduledDate: scheduledDate || undefined,
@@ -101,7 +102,7 @@ exports.getUserCarsStatus = async (req, res, next) => {
 
     const [cars, total] = await Promise.all([
       Car.find({ userId })
-        .select('plate model brand washType amount status scheduledDate scheduledTime createdAt updatedAt')
+        .select('plate model brand color washType amount status scheduledDate scheduledTime createdAt updatedAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),

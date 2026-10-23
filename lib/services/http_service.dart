@@ -1,10 +1,16 @@
-import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
 
-/// ✅ Servicio centralizado para requests HTTP
+/// ✅ Servicio centralizado para requests HTTP.
+///
+/// - Token y refreshToken viven en FlutterSecureStorage (fuente de verdad)
+///   y se mantienen en memoria para construir los headers.
+/// - Ante un 401 se intenta renovar la sesión una sola vez con el refresh
+///   token; si falla, se limpian credenciales y se navega al login.
 class HttpService {
   static final HttpService _instance = HttpService._internal();
 
@@ -14,33 +20,36 @@ class HttpService {
 
   HttpService._internal();
 
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
   String? _authToken;
+  String? _refreshToken;
+  bool _wasAuthenticated = false;
+
+  /// Evita bucles de renovación y saltos de login simultáneos.
+  Future<bool>? _refreshInFlight;
 
   Function()? onUnauthorized;
 
-  bool _wasAuthenticated = false;
-
-  void markAuthenticated() { _wasAuthenticated = true; }
-
-  Future<void> _clearAuth() async {
-    _authToken = null;
-    _wasAuthenticated = false;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-    await prefs.remove('refreshToken');
-    const storage = FlutterSecureStorage();
-    await storage.delete(key: 'token');
-    await storage.delete(key: 'refreshToken');
-  }
-
-  /// ✅ Setter para guardar token JWT
-  void setAuthToken(String token) {
+  /// ✅ Guarda el par de tokens (login, register, Google).
+  Future<void> saveAuthData(String token, String refreshToken) async {
     _authToken = token;
+    _refreshToken = refreshToken;
     _wasAuthenticated = true;
+    await _storage.write(key: 'token', value: token);
+    await _storage.write(key: 'refreshToken', value: refreshToken);
+    await _migrateTokenFromPrefs();
   }
 
-  /// ✅ Getter para verificar autenticación
-  bool get isAuthenticated => _authToken != null && _authToken!.isNotEmpty;
+  /// El token en SharedPreferences es legacy: al cargarlo se migra a secure
+  /// storage y se elimina del almacenamiento plano.
+  Future<void> _migrateTokenFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getString('token') != null) {
+      await prefs.remove('token');
+      await prefs.remove('refreshToken');
+    }
+  }
 
   /// ✅ Headers base con autenticación
   Map<String, String> _getHeaders() {
@@ -48,30 +57,19 @@ class HttpService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    
+
     if (_authToken != null) {
       headers['Authorization'] = 'Bearer $_authToken';
     }
-    
+
     return headers;
   }
 
-  /// ✅ GET request con manejo de errores mejorado
+  /// ✅ GET request
   Future<Map<String, dynamic>> get(String url) async {
-    try {
-      final response = await http
-          .get(
-            Uri.parse(url),
-            headers: _getHeaders(),
-          )
-          .timeout(ApiConfig.connectionTimeout);
-
-      return _handleResponse(response);
-    } on http.ClientException {
-      throw HttpException('Error de conexión. Verifica tu internet');
-    } catch (e) {
-      throw HttpException('Error inesperado: $e');
-    }
+    return _request((headers) => http
+        .get(Uri.parse(url), headers: headers)
+        .timeout(ApiConfig.receiveTimeout));
   }
 
   /// ✅ POST request con soporte de idempotencia
@@ -80,27 +78,13 @@ class HttpService {
     Map<String, dynamic> body, {
     String? idempotencyKey,
   }) async {
-    try {
-      final headers = _getHeaders();
-      if (idempotencyKey != null) {
-        headers['Idempotency-Key'] = idempotencyKey;
-      }
-      final response = await http
-          .post(
-            Uri.parse(url),
-            headers: headers,
-            body: json.encode(body),
-          )
-          .timeout(ApiConfig.connectionTimeout);
-
-      return _handleResponse(response);
-    } on HttpException {
-      rethrow;
-    } on UnauthorizedException {
-      rethrow;
-    } catch (e) {
-      throw HttpException('$e');
-    }
+    return _request((headers) {
+      final merged = Map<String, String>.of(headers);
+      if (idempotencyKey != null) merged['Idempotency-Key'] = idempotencyKey;
+      return http
+          .post(Uri.parse(url), headers: merged, body: json.encode(body))
+          .timeout(ApiConfig.receiveTimeout);
+    });
   }
 
   /// ✅ PUT request
@@ -108,22 +92,111 @@ class HttpService {
     String url,
     Map<String, dynamic> body,
   ) async {
+    return _request((headers) => http
+        .put(Uri.parse(url), headers: headers, body: json.encode(body))
+        .timeout(ApiConfig.receiveTimeout));
+  }
+
+  /// Pipeline común: envía la petición, renueva token si expiró (una vez) y
+  /// delega el mapping de respuesta.
+  Future<Map<String, dynamic>> _request(
+    Future<http.Response> Function(Map<String, String> headers) send,
+  ) async {
+    // Carga diferida: recupera el token si la app arrancó en caliente.
+    if (_authToken == null && !_wasAuthenticated) {
+      await loadToken();
+    }
+
     try {
-      final response = await http
-          .put(
-            Uri.parse(url),
-            headers: _getHeaders(),
-            body: json.encode(body),
-          )
-          .timeout(ApiConfig.receiveTimeout);
+      var response = await send(_getHeaders());
+
+      if (response.statusCode == 401) {
+        final refreshed = await tryRefreshToken();
+        if (refreshed) {
+          response = await send(_getHeaders());
+        }
+      }
 
       return _handleResponse(response);
     } on HttpException {
       rethrow;
     } on UnauthorizedException {
       rethrow;
+    } on TimeoutException {
+      throw HttpException('Tiempo de espera agotado. Verifica tu conexión');
     } catch (e) {
-      throw HttpException('$e');
+      throw HttpException('Error inesperado: $e');
+    }
+  }
+
+  /// ✅ Intenta renovar la sesión con el refresh token.
+  ///
+  /// Devuelve true si la sesión fue renovada. Si no hay refresh token o la
+  /// renovación falla, limpia las credenciales y dispara el logout global.
+  Future<bool> tryRefreshToken() async {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) return inFlight;
+
+    final task = _doRefresh();
+    _refreshInFlight = task;
+    try {
+      return await task;
+    } finally {
+      _refreshInFlight = null;
+    }
+  }
+
+  Future<bool> _doRefresh() async {
+    final refreshToken = _refreshToken ?? await _storage.read(key: 'refreshToken');
+    if (refreshToken == null || refreshToken.isEmpty) {
+      await _handleSessionExpired();
+      return false;
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(ApiConfig.authRefreshUrl),
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: json.encode({'refreshToken': refreshToken}),
+          )
+          .timeout(ApiConfig.receiveTimeout);
+
+      if (response.statusCode != 200) {
+        await _handleSessionExpired();
+        return false;
+      }
+
+      final decoded = json.decode(response.body) as Map<String, dynamic>;
+      final newToken = decoded['token'] as String?;
+      final newRefresh = decoded['refreshToken'] as String?;
+      if (newToken == null || newToken.isEmpty) {
+        await _handleSessionExpired();
+        return false;
+      }
+
+      _refreshToken = newRefresh;
+      _authToken = newToken;
+      await _storage.write(key: 'token', value: newToken);
+      if (newRefresh != null) {
+        await _storage.write(key: 'refreshToken', value: newRefresh);
+      }
+      return true;
+    } catch (_) {
+      // Red fallida al renovar: no cerramos sesión de golpe si había una
+      // sesión previa válida; la próxima petición lo volverá a intentar.
+      return false;
+    }
+  }
+
+  Future<void> _handleSessionExpired() async {
+    await clearAuth();
+    if (_wasAuthenticated) {
+      _wasAuthenticated = false;
+      onUnauthorized?.call();
     }
   }
 
@@ -143,16 +216,15 @@ class HttpService {
           );
 
         case 401:
-          await _clearAuth();
-          if (_wasAuthenticated) {
-            onUnauthorized?.call();
-          }
+          await _handleSessionExpired();
           throw UnauthorizedException(
             decoded['error'] ?? 'Sesión expirada',
           );
 
         case 403:
-          throw HttpException('No tienes permisos para esta acción');
+          throw HttpException(
+            decoded['error'] ?? 'No tienes permisos para esta acción',
+          );
 
         case 404:
           throw HttpException(
@@ -160,7 +232,7 @@ class HttpService {
           );
 
         case 500:
-          throw HttpException('Error del servidor');
+          throw HttpException(decoded['error'] ?? 'Error del servidor');
 
         default:
           throw HttpException(
@@ -175,36 +247,49 @@ class HttpService {
     }
   }
 
-  /// ✅ Cargar token desde SharedPreferences
+  /// ✅ Carga el token desde secure storage (migra desde prefs si hace falta).
   Future<void> loadToken() async {
     if (_authToken != null) return;
-    final prefs = await SharedPreferences.getInstance();
-    _authToken = prefs.getString('token');
+    _authToken = await _storage.read(key: 'token');
+    _refreshToken = await _storage.read(key: 'refreshToken');
+    if (_authToken != null && _authToken!.isNotEmpty) {
+      _wasAuthenticated = true;
+      await _migrateTokenFromPrefs();
+    }
   }
 
   /// ✅ Guardar userId en almacenamiento seguro
   Future<void> saveUserId(String userId) async {
-    const storage = FlutterSecureStorage();
-    await storage.write(key: 'userId', value: userId);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userId', userId);
+    await _storage.write(key: 'userId', value: userId);
   }
 
   /// ✅ Leer userId desde almacenamiento seguro (con fallback a prefs)
   Future<String?> getUserId() async {
-    const storage = FlutterSecureStorage();
-    String? userId = await storage.read(key: 'userId');
+    String? userId = await _storage.read(key: 'userId');
     if (userId == null || userId.isEmpty) {
       final prefs = await SharedPreferences.getInstance();
       userId = prefs.getString('userId');
+      if (userId != null) {
+        await _storage.write(key: 'userId', value: userId);
+      }
     }
     return userId;
   }
 
-  /// ✅ Limpiar token (logout)
-  void clearAuth() {
+  /// ✅ Limpiar credenciales (logout + manejo de 401 definitivo)
+  Future<void> clearAuth() async {
     _authToken = null;
+    _refreshToken = null;
+    _wasAuthenticated = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('refreshToken');
+    await prefs.remove('role');
+    await _storage.delete(key: 'token');
+    await _storage.delete(key: 'refreshToken');
   }
+
+  bool get isAuthenticated => _authToken != null && _authToken!.isNotEmpty;
 }
 
 /// ✅ Excepciones personalizadas

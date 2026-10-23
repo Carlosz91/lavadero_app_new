@@ -109,7 +109,7 @@ exports.getPaymentsByUserId = async (req, res, next) => {
 /**
  * @desc    Actualiza estado y/o método de un pago
  * @route   PUT /api/payments/:id
- * @access  Private
+ * @access  Private (admin, staff)
  */
 exports.updatePaymentStatus = async (req, res, next) => {
   try {
@@ -122,8 +122,10 @@ exports.updatePaymentStatus = async (req, res, next) => {
     }
 
     const isStaff = ['admin', 'staff'].includes(req.user.role);
-    if (!isStaff && payment.userId.toString() !== req.user.id) {
-      throw new ForbiddenError('No tienes permiso para actualizar este pago');
+    if (!isStaff) {
+      throw new ForbiddenError(
+        'Solo el personal puede actualizar pagos. Los usuarios pagan en línea mediante Stripe.'
+      );
     }
 
     const updateData = { status };

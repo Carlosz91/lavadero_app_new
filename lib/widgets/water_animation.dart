@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class WaterBackground extends StatefulWidget {
   final Widget child;
@@ -42,12 +43,23 @@ class _WaterBackgroundState extends State<WaterBackground>
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.isDark
+        ? const [
+            Color(0xFF0B1421),
+            Color(0xFF122336),
+            Color(0xFF0B1421),
+          ]
+        : const [
+            Color(0xFFE7F6FA),
+            Color(0xFFF7FCFE),
+            Colors.white,
+          ];
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFE3F2FD), Color(0xFFF5F5F5), Colors.white],
+          colors: colors,
         ),
       ),
       child: Stack(
@@ -98,7 +110,7 @@ class _WaterPainter extends CustomPainter {
       final opacity = p > 0.9 ? drop.opacity * (1 - (p - 0.9) / 0.1) : drop.opacity;
 
       final paint = Paint()
-        ..color = const Color(0xFF4FC3F7).withValues(alpha: opacity)
+        ..color = AppColors.primaryLight.withValues(alpha: opacity)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
 
       canvas.drawCircle(Offset(x, y), drop.size, paint);
@@ -168,12 +180,12 @@ class _AnimatedLogoState extends State<AnimatedLogo>
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF29B6F6), Color(0xFF0288D1)],
+                colors: [AppColors.primaryLight, AppColors.primaryDark],
               ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF0288D1).withValues(alpha: 0.4),
+                  color: AppColors.primary.withValues(alpha: 0.4),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),

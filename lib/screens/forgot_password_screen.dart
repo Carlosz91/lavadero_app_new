@@ -3,8 +3,10 @@ import 'dart:async';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatters.dart';
 import '../widgets/custom_widgets.dart';
 import '../widgets/water_animation.dart';
+import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -30,8 +32,8 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       try {
         await _httpService.post(
-          '${ApiConfig.baseUrl}/api/auth/forgot-password',
-          {'email': _emailController.text},
+          ApiConfig.authForgotPasswordUrl,
+          {'email': _emailController.text.trim()},
         );
 
         if (!mounted) return;
@@ -76,7 +78,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Recuperar Contraseña'),
@@ -135,7 +137,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Icon(
-            _emailSent ? Icons.mark_email_read : Icons.lock_reset,
+            _emailSent ? Icons.mark_email_read_rounded : Icons.lock_reset,
             size: 72,
             color: _emailSent ? AppColors.success : AppColors.primary,
           ),
@@ -165,15 +167,14 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       decoration: const InputDecoration(
         labelText: 'Correo electr\u00f3nico',
         hintText: 'ejemplo@correo.com',
-        prefixIcon: Icon(Icons.email),
+        prefixIcon: Icon(Icons.email_rounded),
       ),
       keyboardType: TextInputType.emailAddress,
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Por favor, ingresa tu correo electr\u00f3nico';
         }
-        if (!RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-            .hasMatch(value)) {
+        if (!isValidEmail(value)) {
           return 'Ingresa un correo v\u00e1lido';
         }
         return null;
@@ -189,6 +190,21 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
+                );
+              },
+              icon: const Icon(Icons.lock_reset),
+              label: const Text('Ingresar c\u00f3digo y cambiar contrase\u00f1a'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: OutlinedButton.icon(
               onPressed: _resetForm,
               icon: const Icon(Icons.mail_outline),
               label: const Text('Enviar a otro correo'),

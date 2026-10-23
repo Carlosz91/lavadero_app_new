@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Identidad "Agua": cian de marca usado por la splash nativa. -->
+    <color name="brand_primary">#0891B2</color>
+    <color name="brand_primary_dark">#155E75</color>
+</resources>

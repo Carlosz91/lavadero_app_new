@@ -47,5 +47,14 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Abre checkout de Stripe (y cualquier https) en el navegador:
+             Android 11+ exige declarar visibility para resolver la app destino. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
     </queries>
+    <!-- Biometría: bloqueo de app con huella/reconocimiento facial -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <uses-feature android:name="android.hardware.fingerprint" android:required="false"/>
 </manifest>

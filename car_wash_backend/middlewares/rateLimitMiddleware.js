@@ -41,3 +41,11 @@ exports.carRegisterLimiter = rateLimit({
   skip: isTest,
   keyGenerator: (req) => (req.user ? `user:${req.user.id}` : ipKeyGenerator()(req)),
 });
+
+// Reset de contraseña: barrera contra abuso/spam de emails. 5 por hora por IP.
+exports.passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isTest() ? 0 : devMax(5),
+  message: 'Demasiadas solicitudes de recuperación, intenta más tarde',
+  skip: isTest,
+});

@@ -2,13 +2,15 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 // ✅ Importar middleware de validación
-const { 
+const {
   validateRegister, 
   validateLogin, 
+  validateForgotPassword,
+  validateResetPassword,
   handleValidationErrors 
 } = require('../middlewares/validationMiddleware');
 // ✅ Importar rate limiter
-const { authLimiter, registerLimiter } = require('../middlewares/rateLimitMiddleware');
+const { authLimiter, registerLimiter, passwordResetLimiter } = require('../middlewares/rateLimitMiddleware');
 // ✅ Importar token verification
 const verifyToken = require('../middlewares/verifyToken');
 
@@ -87,6 +89,81 @@ router.post(
 
 /**
  * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Solicitar restablecimiento de contraseña
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Respuesta genérica (no revela si el email existe)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Email inválido
+ *       429:
+ *         description: Demasiadas solicitudes
+ */
+router.post(
+  '/forgot-password',
+  passwordResetLimiter,
+  validateForgotPassword,
+  handleValidationErrors,
+  authController.forgotPassword
+);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Restablecer contraseña con el código recibido por email
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [resetToken, newPassword]
+ *             properties:
+ *               resetToken:
+ *                 type: string
+ *                 description: Código recibido por correo (válido 15 min)
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Contraseña restablecida exitosamente
+ *       400:
+ *         description: Código inválido/expirado o contraseña débil
+ *       429:
+ *         description: Demasiadas solicitudes
+ */
+router.post(
+  '/reset-password',
+  passwordResetLimiter,
+  validateResetPassword,
+  handleValidationErrors,
+  authController.resetPassword
+);
+
+/**
+ * @swagger
  * /api/auth/google:
  *   post:
  *     summary: Iniciar sesión con Google
@@ -122,16 +199,16 @@ router.post('/google', authController.googleLogin);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token]
+ *             required: [refreshToken]
  *             properties:
- *               token:
+ *               refreshToken:
  *                 type: string
- *                 description: Token JWT actual o refresh token
+ *                 description: Refresh token entregado en el login
  *     responses:
  *       200:
  *         description: Token renovado exitosamente
  *       401:
- *         description: Token inválido o expirado
+ *         description: Refresh token inválido o expirado
  */
 router.post('/refresh', authController.refreshToken);
 

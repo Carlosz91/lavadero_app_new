@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/formatters.dart';
 import '../widgets/custom_widgets.dart';
 import '../widgets/water_animation.dart';
 import 'homescreen.dart';
@@ -24,7 +24,6 @@ class LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final storage = FlutterSecureStorage();
   final HttpService _httpService = HttpService();
 
   bool _isLoading = false;
@@ -36,6 +35,24 @@ class LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  /// Guarda la sesión local: tokens en secure storage vía HttpService y
+  /// datos no sensibles (email/rol/nombre) en prefs.
+  Future<void> _persistSession(
+    String email, {
+    required String token,
+    required String refreshToken,
+    required String userId,
+    String? name,
+    String? role,
+  }) async {
+    await _httpService.saveAuthData(token, refreshToken);
+    await _httpService.saveUserId(userId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userEmail', email);
+    if (name != null && name.isNotEmpty) await prefs.setString('userName', name);
+    await prefs.setString('role', role ?? 'user');
   }
 
   Future<void> _login() async {
@@ -50,19 +67,19 @@ class LoginScreenState extends State<LoginScreen> {
 
       try {
         final data = await _httpService.post(
-          '${ApiConfig.baseUrl}/api/auth/login',
+          ApiConfig.authLoginUrl,
           {'email': email, 'password': password},
         );
 
-        await storage.write(key: 'token', value: data['token']);
-        _httpService.setAuthToken(data['token']);
-
-        final prefs = await SharedPreferences.getInstance();
-        await _httpService.saveUserId(data['userId']);
-        await prefs.setString('userEmail', email);
-        await prefs.setString('token', data['token']);
-        final role = data['user']?['role'] ?? 'user';
-        await prefs.setString('role', role);
+        final refreshToken = data['refreshToken'] as String? ?? '';
+        await _persistSession(
+          email,
+          token: data['token'] as String,
+          refreshToken: refreshToken,
+          userId: data['userId'] as String,
+          name: data['user']?['name'] as String?,
+          role: data['user']?['role'] as String?,
+        );
 
         if (!mounted) return;
 
@@ -90,7 +107,7 @@ class LoginScreenState extends State<LoginScreen> {
   Future<void> _googleLogin() async {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: '768691636599-hfor0s68b39vot0epefpnaio8dplv51u.apps.googleusercontent.com',
+        serverClientId: ApiConfig.googleServerClientId,
       );
       final GoogleSignInAccount? account = await googleSignIn.signIn();
       if (account == null) return;
@@ -104,19 +121,19 @@ class LoginScreenState extends State<LoginScreen> {
       setState(() { _isLoading = true; _errorMessage = null; });
 
       final data = await _httpService.post(
-        '${ApiConfig.baseUrl}/api/auth/google',
+        ApiConfig.authGoogleUrl,
         {'idToken': auth.idToken},
       );
 
-      await storage.write(key: 'token', value: data['token']);
-      _httpService.setAuthToken(data['token']);
-
-      final prefs = await SharedPreferences.getInstance();
-      await _httpService.saveUserId(data['userId']);
-      await prefs.setString('userEmail', account.email);
-      await prefs.setString('token', data['token']);
-      final role = data['user']?['role'] ?? 'user';
-      await prefs.setString('role', role);
+      final refreshToken = data['refreshToken'] as String? ?? '';
+      await _persistSession(
+        account.email,
+        token: data['token'] as String,
+        refreshToken: refreshToken,
+        userId: data['userId'] as String,
+        name: data['user']?['name'] as String?,
+        role: data['user']?['role'] as String?,
+      );
 
       if (!mounted) return;
 
@@ -226,12 +243,12 @@ class LoginScreenState extends State<LoginScreen> {
       decoration: const InputDecoration(
         labelText: 'Correo electrónico',
         hintText: 'tu.email@ejemplo.com',
-        prefixIcon: Icon(Icons.email),
+        prefixIcon: Icon(Icons.email_rounded),
       ),
       keyboardType: TextInputType.emailAddress,
       validator: (value) {
         if (value == null || value.isEmpty) return 'Por favor ingresa tu email';
-        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Ingresa un email válido';
+        if (!isValidEmail(value)) return 'Ingresa un email válido';
         return null;
       },
     );
@@ -243,7 +260,7 @@ class LoginScreenState extends State<LoginScreen> {
       obscureText: _obscurePassword,
       decoration: InputDecoration(
         labelText: 'Contraseña',
-        prefixIcon: const Icon(Icons.lock),
+        prefixIcon: const Icon(Icons.lock_rounded),
         suffixIcon: IconButton(
           icon: Icon(
             _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -309,9 +326,9 @@ class LoginScreenState extends State<LoginScreen> {
       child: OutlinedButton(
         onPressed: _isLoading ? null : _googleLogin,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-          side: BorderSide(color: Colors.grey.shade300),
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.textPrimary,
+          side: BorderSide(color: AppColors.border),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
         ),

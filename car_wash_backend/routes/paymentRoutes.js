@@ -103,7 +103,7 @@ router.get('/user/:userId', verifyToken, paymentController.getPaymentsByUserId);
  * @swagger
  * /api/payments/{id}:
  *   put:
- *     summary: Actualizar estado de un pago
+ *     summary: Actualizar estado de un pago (solo admin/staff)
  *     tags: [Payments]
  *     security:
  *       - bearerAuth: []
@@ -134,6 +134,7 @@ router.get('/user/:userId', verifyToken, paymentController.getPaymentsByUserId);
 router.put(
   '/:id',
   verifyToken,
+  verifyToken.requireRole('admin', 'staff'),
   validatePaymentStatusUpdate,
   handleValidationErrors,
   paymentController.updatePaymentStatus

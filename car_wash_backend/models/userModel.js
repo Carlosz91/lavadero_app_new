@@ -50,6 +50,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  // ✅ Fields para reset de contraseña (token hasheado con sha256, expira en 15 min)
+  resetPasswordToken: {
+    type: String,
+    default: null,
+    index: true,
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null,
+  },
 }, { timestamps: true });
 
 // Middleware para hashear la contraseña antes de guardar

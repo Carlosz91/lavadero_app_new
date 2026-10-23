@@ -1,6 +1,6 @@
 # 🚗 Lavadero App
 
-Aplicación móvil para la gestión de lavaderos de vehículos. Permite registrar autos, seguir el estado del lavado en tiempo real, gestionar pagos y administrar el flujo de trabajo.
+Aplicación móvil para la gestión de lavaderos de vehículos. Permite registrar autos, seguir el estado del lavado en tiempo real, pagar en línea y administrar el flujo de trabajo.
 
 ## Stack
 
@@ -9,24 +9,26 @@ Aplicación móvil para la gestión de lavaderos de vehículos. Permite registra
 | Frontend | Flutter 3.35.2 / Dart 3.9.0 |
 | Backend | Node.js / Express |
 | Base de datos | MongoDB |
-| Autenticación | JWT |
+| Autenticación | JWT (access 1h + refresh 7d) |
+| Email | Nodemailer (SMTP opcional) |
 
 ## Funcionalidades
 
-- **Registro de vehículos** — cualquier usuario autenticado puede registrar un auto con placa, modelo, marca y tipo de lavado
-- **Agendamiento** — selección de fecha y hora al registrar, con control de capacidad (máximo 5 autos por día)
-- **Estado del lavado** — seguimiento en tiempo real con filtros por estado (Pendiente, En Progreso, Completado, Cancelado)
-- **Gestión de pagos** — registro y consulta de pagos (Efectivo, Tarjeta, Transferencia, Stripe)
-- **Pantalla de pagos** — tabs Pendientes/Historial con resumen de montos y pull-to-refresh
-- **Stripe Checkout** — integración con webhook firmado (sin success URL insegura)
+- **Registro de vehículos** — cualquier usuario autenticado puede registrar un auto con placa, modelo, marca, color y tipo de lavado
+- **Agendamiento** — selección de fecha y hora al registrar, con control de capacidad (máximo 5 autos por día, server-side)
+- **Estado del lavado** — seguimiento con filtros por estado (Pendiente, En Progreso, Completado, Cancelado) y progreso derivado del estado real
+- **Pagos** — los usuarios pagan **solo con Stripe Checkout**; Efectivo/Tarjeta/Transferencia los registra el staff/admin desde el panel (el usuario no puede autoproclamar pagos → 403)
 - **Pago pendiente** — al completar el lavado se genera un pago; bloquea nuevo registro si hay deuda
-- **Panel admin** — `http://localhost:5000/admin/` (login JWT, auto-refresh, auto-logout al expirar)
-- **Roles** — `admin`/`staff` pueden cambiar estados; `user` solo registra, agenda y consulta
+- **Recuperación de contraseña** — `POST /api/auth/forgot-password` envía un código por email (SMTP opcional; sin SMTP, en desarrollo el código queda en los logs) y `POST /api/auth/reset-password` permite restablecer con código de un solo uso (15 min)
+- **Modo oscuro** — toggle real en Ajustes, persistente, con paleta mutable (`AppColors.apply`)
+- **Bloqueo biométrico** — bloqueo de app con huella/rostro/PIN del dispositivo (`local_auth`), verificable al activar y al volver del segundo plano
+- **Panel admin** — `http://localhost:5000/admin/` (login JWT, auto-refresh, auto-logout al expirar, salida HTML escapada)
+- **Roles** — `admin`/`staff` pueden cambiar estados y marcar pagos; `user` solo registra, agenda, consulta y paga con Stripe
 - **Primer usuario** registrado se convierte en `admin` automáticamente
-- **Sistema de diseño** — tema personalizado con colores, tipografía y 9 componentes reutilizables
+- **Sistema de diseño** — tema personalizado claro/oscuro con colores, tipografía y componentes reutilizables
 - **Animaciones** — fondo con gotas animadas, logo flotante, fade-in escalonado en todas las pantallas
 - **API REST** documentada con Swagger en `http://localhost:5000/api/docs`
-- **Seguridad** — JWT, Helmet CSP, rate limiting, sanitize, validación, bloqueo por fuerza bruta, idempotencia en POST (Idempotency-Key)
+- **Seguridad** — JWT con claim `type` (access/refresh separados), renovación automática de sesión ante 401, Helmet CSP, rate limiting, sanitize, validación, bloqueo por fuerza bruta, idempotencia en POST (Idempotency-Key), CORS con allowlist por defecto
 
 ## Instalación
 
@@ -40,10 +42,12 @@ Aplicación móvil para la gestión de lavaderos de vehículos. Permite registra
 
 ```bash
 cd car_wash_backend
-cp .env.example .env   # editar MONGO_URI y JWT_SECRET
+cp .env.example .env   # editar MONGO_URI, JWT_SECRET, JWT_REFRESH_SECRET
 npm install
 npm start
 ```
+
+Variables opcionales: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `GOOGLE_CLIENT_ID` (obligatorio en producción para Google Sign-In), `SMTP_*` para el envío de emails de recuperación y `APP_RESET_URL`.
 
 ### Frontend
 
@@ -51,6 +55,8 @@ npm start
 flutter pub get
 flutter run
 ```
+
+Para Google Sign-In se puede configurar el server client id con `--dart-define=GOOGLE_SERVER_CLIENT_ID=...` (hay un default de desarrollo).
 
 ### Build release con ofuscación
 
@@ -66,9 +72,12 @@ flutter build apk --release --obfuscate --split-debug-info=build/symbols
 
 - **Precios server-side**: el cliente no envía montos; el backend calcula el precio desde `config/priceCatalog.js` (fuente de verdad) e ignora `amount` recibido
 - **Catálogo centralizado**: `GET /api/cars/prices` público para que la app muestre precios sin confiarlos
-- **Rate limits**: límites por IP (global) y por usuario (10 registros/hora en `registercar`)
+- **Pagos**: `PUT /api/payments/:id` exclusivo de admin/staff; el checkout de Stripe toma el monto del pago existente (`paymentId`)
+- **Rate limits**: límites por IP (global), por usuario (10 registros/hora en `registercar`) y de recuperación de contraseña (5/hora)
 - **Idempotencia**: `Idempotency-Key` requerida en POST con replay 24h en MongoDB
-- **Credenciales**: token JWT y `userId` en FlutterSecureStorage (no en SharedPreferences)
+- **Credenciales**: token, refresh token y `userId` en FlutterSecureStorage (fuente de verdad; migración automática desde SharedPreferences)
+- **Reset de contraseña**: el token se guarda hasheado (sha256) y expira en 15 minutos; la respuesta es genérica para evitar enumeración de usuarios
+- **Dependencias**: `npm audit --omit=dev` → 0 vulnerabilidades en el árbol de producción (las restantes son solo tooling dev: jest/nodemon, esperando parches upstream)
 
 ### Crear admin manualmente
 
@@ -83,27 +92,35 @@ cd car_wash_backend
 npm test
 ```
 
-49 tests, ~85% de cobertura.
+60 tests con Jest: login/registro/Google, refresh (incluye rechazo de access token como refresh), forgot/reset-password completo con `mailer.outbox`, autos, pagos (403 al dueño, 200 al admin), admin y Stripe.
+
+```bash
+flutter test      # widget test del flujo de login
+flutter analyze   # 0 issues
+```
 
 ## Estructura
 
 ```
 lib/
-├── screens/          # 10 pantallas (login, register, forgot-password, home, register-car, wash-status, payments, settings, about)
-├── widgets/          # 10 componentes reutilizables (GradientAppBar, StatusBadge, ActionCard, WaterBackground, AnimatedLogo, StaggeredFadeIn, etc.)
-├── theme/            # sistema de diseño (AppColors, AppTextStyles, AppTheme)
-├── services/         # HTTP service singleton
-└── config/           # API config
+├── screens/          # pantallas (login, register, forgot/reset-password, home, register-car, wash-status, payments, lock, settings, about)
+├── widgets/          # componentes reutilizables (GradientAppBar, StatusBadge, WaterBackground, StaggeredFadeIn, etc.)
+├── theme/            # sistema de diseño claro/oscuro (AppColors mutable, AppTextStyles, AppTheme)
+├── services/         # http, theme controller, app lock (biometría)
+├── utils/            # formatters compartidos (moneda, fechas, email)
+└── config/           # API config (endpoints centralizados)
 
 car_wash_backend/
 ├── controllers/      # lógica de negocio (auth, cars, payments, stripe)
 ├── middlewares/      # auth, validación, sanitize, rate limit, error handler
 ├── models/           # esquemas MongoDB (User, Car, Payment)
 ├── routes/           # definición de rutas REST
-├── utils/            # logger (Winston), AppError, requestId
+├── utils/            # logger (Winston), AppError, requestId, mailer (Nodemailer)
 ├── scripts/          # seedAdmin.js
-├── __tests__/        # 49 tests con Jest (~85% cobertura)
+├── __tests__/        # 60 tests con Jest (supertest + mongodb-memory-server)
 └── admin-panel/      # panel web HTML con login JWT + auto-refresh
+
+docs/                 # notas de diseño e implementación (MDs históricos)
 ```
 
 ## Licencia
