@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment files
+.env
+car_wash_backend/.env
+docker-compose.override.yml
+
+# Node (e2e Playwright)
+e2e/node_modules/
+e2e/playwright-report/
+e2e/test-results/
+coverage/

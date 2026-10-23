@@ -1,10 +1,23 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const Stripe = require('stripe');
 const Payment = require('../models/paymentModel');
 const logger = require('../utils/logger');
-const { ValidationError, ForbiddenError } = require('../utils/AppError');
+const { AppError, ValidationError, ForbiddenError } = require('../utils/AppError');
 
 const HOST = process.env.STRIPE_REDIRECT_HOST || 'http://10.0.2.2:5000';
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+
+// Instancia lazy: el servidor arranca aunque STRIPE_SECRET_KEY no esté definida
+// y los endpoints de Stripe devuelven un 500 claro en su lugar.
+let stripeClient = null;
+const getStripe = () => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new AppError('Stripe no está configurado en el servidor (STRIPE_SECRET_KEY)', 500, 'SERVER_CONFIG');
+  }
+  if (!stripeClient) {
+    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripeClient;
+};
 
 /**
  * @desc    Crea sesión de pago Stripe. Requiere un paymentId existente (creado por el sistema o admin); el monto siempre proviene del pago, nunca del cliente.
@@ -34,10 +47,35 @@ exports.createCheckoutSession = async (req, res, next) => {
       throw new ValidationError('Este pago ya fue procesado');
     }
 
+    // Un pago solo tiene UN checkout activo: reintentos reutilizan la sesión
+    // abierta o detectan el cobro ya hecho. Sin esto, un reintento tras
+    // fallar el redirect crearía un cobro NUEVO cada vez.
+    if (payment.checkoutSessionId) {
+      let existing = null;
+      try {
+        existing = await getStripe().checkout.sessions.retrieve(payment.checkoutSessionId);
+      } catch (err) {
+        logger.warn('No se pudo reutilizar el checkout anterior, se creará uno nuevo', { paymentId: payment._id, error: err.message });
+      }
+      if (existing?.payment_status === 'paid') {
+        // El cobro ya se concretó pero aún no se marcó (webhook/success pendientes):
+        // reconciliar acá en lugar de generar otro cobro.
+        payment.status = 'Pagado';
+        payment.method = 'Stripe';
+        await payment.save();
+        logger.info('Pago Stripe reconciliado al reintentar checkout', { paymentId: payment._id });
+        throw new ValidationError('Este pago ya fue procesado');
+      }
+      if (existing?.status === 'open') {
+        logger.info('Checkout Stripe: reutilizando sesión abierta', { paymentId: payment._id, sessionId: existing.id });
+        return res.status(200).json({ paymentId: payment._id, url: existing.url, sessionId: existing.id });
+      }
+    }
+
     const finalPlate = payment.plate || plate;
     const finalAmount = payment.amount;
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
@@ -56,6 +94,9 @@ exports.createCheckoutSession = async (req, res, next) => {
       cancel_url: `${HOST}/api/stripe/cancel`,
       metadata: { paymentId: payment._id.toString(), userId },
     });
+
+    // Recordar la sesión activa: el reintento la reutiliza o detecta el cobro.
+    await Payment.findByIdAndUpdate(payment._id, { checkoutSessionId: session.id });
 
     logger.info('Checkout Stripe creado', { paymentId: payment._id, sessionId: session.id, amount: finalAmount });
 
@@ -80,7 +121,7 @@ exports.success = async (req, res) => {
   const { session_id } = req.query;
   if (session_id) {
     try {
-      const session = await stripe.checkout.sessions.retrieve(session_id);
+      const session = await getStripe().checkout.sessions.retrieve(session_id);
       const paymentId = session.metadata?.paymentId;
       if (paymentId) {
         const payment = await Payment.findById(paymentId);
@@ -119,7 +160,11 @@ exports.webhook = async (req, res) => {
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(payload, sig, WEBHOOK_SECRET);
+    if (!process.env.STRIPE_SECRET_KEY || !WEBHOOK_SECRET) {
+      logger.error('Webhook de Stripe llamado sin STRIPE_SECRET_KEY o STRIPE_WEBHOOK_SECRET configurados');
+      return res.status(503).send('Webhook no configurado en el servidor');
+    }
+    event = getStripe().webhooks.constructEvent(payload, sig, WEBHOOK_SECRET);
   } catch (err) {
     logger.error('Firma de webhook Stripe inválida', { error: err.message });
     return res.status(400).send(`Webhook Error: ${err.message}`);

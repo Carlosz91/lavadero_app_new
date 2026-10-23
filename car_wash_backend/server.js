@@ -16,11 +16,22 @@ app.set('trust proxy', 1);
 
 app.use(requestId);
 
+// CORS: por defecto solo orígenes de desarrollo. En producción definir
+// ALLOWED_ORIGINS (lista separada por comas). La app móvil nativa no usa CORS
+// (no envía Origin); el panel admin y el frontend web se sirven desde el mismo
+// origen, y la autenticación va por header Authorization (no se necesita credentials).
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:5000',
+  'http://localhost:3000',
+  'http://localhost:5099',
+];
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : DEFAULT_ALLOWED_ORIGINS;
+
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',')
-    : true,
-  credentials: true,
+  origin: allowedOrigins,
+  credentials: false,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 

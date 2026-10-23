@@ -148,6 +148,7 @@ describe('GET /api/payments/user/:userId', () => {
 });
 
 describe('PUT /api/payments/:id', () => {
+  let tokenAdmin;
   let tokenUser1;
   let tokenUser2;
   let paymentId;
@@ -156,12 +157,13 @@ describe('PUT /api/payments/:id', () => {
     const admin = await register('PayPutAdmin', `pay_put_adm_${Date.now()}@test.com`);
     const user1 = await register('PayPutUser1', `pay_put_1_${Date.now()}@test.com`);
     const user2 = await register('PayPutUser2', `pay_put_2_${Date.now()}@test.com`);
+    tokenAdmin = admin.token;
     tokenUser1 = user1.token;
     tokenUser2 = user2.token;
 
     const carRes = await createCar(tokenUser1, 'ABC-1234');
-    await startCar(admin.token, carRes.body.car._id);
-    await closeCar(admin.token, carRes.body.car._id);
+    await startCar(tokenAdmin, carRes.body.car._id);
+    await closeCar(tokenAdmin, carRes.body.car._id);
 
     const payRes = await request(app)
       .get('/api/payments')
@@ -170,14 +172,22 @@ describe('PUT /api/payments/:id', () => {
     paymentId = payRes.body.data[0]._id;
   });
 
-  test('owner can update own payment status', async () => {
+  test('admin/staff can update payment status', async () => {
     const res = await request(app)
       .put(`/api/payments/${paymentId}`)
-      .set('Authorization', `Bearer ${tokenUser1}`)
+      .set('Authorization', `Bearer ${tokenAdmin}`)
       .send({ status: 'Pagado' })
       .expect(200);
 
     expect(res.body.status).toBe('Pagado');
+  });
+
+  test('rejects owner updating own payment (solo staff)', async () => {
+    await request(app)
+      .put(`/api/payments/${paymentId}`)
+      .set('Authorization', `Bearer ${tokenUser1}`)
+      .send({ status: 'Pagado' })
+      .expect(403);
   });
 
   test('rejects updating another user payment', async () => {
@@ -191,7 +201,7 @@ describe('PUT /api/payments/:id', () => {
   test('rejects invalid status', async () => {
     await request(app)
       .put(`/api/payments/${paymentId}`)
-      .set('Authorization', `Bearer ${tokenUser1}`)
+      .set('Authorization', `Bearer ${tokenAdmin}`)
       .send({ status: 'Invalido' })
       .expect(400);
   });

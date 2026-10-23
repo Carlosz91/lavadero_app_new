@@ -1,6 +1,7 @@
 require('./helpers/setup');
 const request = require('supertest');
 const app = require('../server');
+const User = require('../models/userModel');
 
 describe('POST /api/auth/register', () => {
   test('registers a new user', async () => {
@@ -128,6 +129,127 @@ describe('POST /api/auth/refresh', () => {
       .post('/api/auth/refresh')
       .send({})
       .expect(400);
+  });
+
+  test('rejects access token used as refresh token', async () => {
+    const email = `refresh_access_${Date.now()}@test.com`;
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'RefreshAccess', email, password: 'TestPass1!' })
+      .expect(201);
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email, password: 'TestPass1!' })
+      .expect(200);
+
+    // Un access token no debe servir para renovar sesión
+    await request(app)
+      .post('/api/auth/refresh')
+      .send({ refreshToken: loginRes.body.token })
+      .expect(401);
+
+    // Ni el token devuelto por register
+    await request(app)
+      .post('/api/auth/refresh')
+      .send({ refreshToken: reg.body.token })
+      .expect(401);
+  });
+});
+
+describe('POST /api/auth/forgot-password', () => {
+  test('responds generically for existing user (no enumeration)', async () => {
+    const email = `forgot_${Date.now()}@test.com`;
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Forgot', email, password: 'TestPass1!' });
+
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email })
+      .expect(200);
+
+    expect(res.body.message).toContain('Si el correo está registrado');
+  });
+
+  test('responds generically for unknown email (no enumeration)', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: `nobody_${Date.now()}@test.com` })
+      .expect(200);
+
+    expect(res.body.message).toContain('Si el correo está registrado');
+  });
+
+  test('responds generically for Google-only accounts', async () => {
+    const email = `gapp_${Date.now()}@test.com`;
+    await User.create({ email, name: 'GoogleOnly' }); // sin password
+
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email })
+      .expect(200);
+
+    expect(res.body.message).toContain('Si el correo está registrado');
+  });
+
+  test('rejects invalid email', async () => {
+    await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'not-email' })
+      .expect(400);
+  });
+});
+
+describe('POST /api/auth/reset-password', () => {
+  test('rejects invalid code', async () => {
+    await request(app)
+      .post('/api/auth/reset-password')
+      .send({ resetToken: 'no-such-token', newPassword: 'NewPass123!' })
+      .expect(400);
+  });
+
+  test('rejects weak new password', async () => {
+    await request(app)
+      .post('/api/auth/reset-password')
+      .send({ resetToken: 'no-such-token', newPassword: '123' })
+      .expect(400);
+  });
+
+  test('resets password with valid code and allows login', async () => {
+    const email = `reset_flow_${Date.now()}@test.com`;
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'ResetFlow', email, password: 'TestPass1!' });
+
+    const mailer = require('../utils/mailer');
+    mailer.outbox.length = 0;
+
+    await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email })
+      .expect(200);
+
+    const mail = mailer.outbox.find(m => m.to === email);
+    expect(mail).toBeTruthy();
+    const code = mail.text.match(/Código: (\S+)/)?.[1];
+    expect(code).toBeTruthy();
+
+    await request(app)
+      .post('/api/auth/reset-password')
+      .send({ resetToken: code, newPassword: 'NewPass123!' })
+      .expect(200);
+
+    // El código es de un solo uso
+    await request(app)
+      .post('/api/auth/reset-password')
+      .send({ resetToken: code, newPassword: 'NewPass123!' })
+      .expect(400);
+
+    // Login con la contraseña nueva
+    await request(app)
+      .post('/api/auth/login')
+      .send({ email, password: 'NewPass123!' })
+      .expect(200);
   });
 });
 

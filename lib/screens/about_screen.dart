@@ -28,12 +28,12 @@ class AboutScreen extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: 4),
-                  Text(
-                    'Versi\u00f3n 1.0.0',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
                 ],
               ),
+            ),
+            Text(
+              'Versión 1.0.0',
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 32),
             _buildSection(
@@ -47,11 +47,11 @@ class AboutScreen extends StatelessWidget {
               'Funcionalidades',
               '\u2022 Registro de veh\u00edculos para lavado\n'
               '\u2022 Seguimiento del estado del lavado\n'
-              '\u2022 Gesti\u00f3n de pagos\n'
+              '\u2022 Gesti\u00f3n de pagos con Stripe\n'
               '\u2022 Panel de administraci\u00f3n web\n'
-              '\u2022 Notificaciones push\n'
-              '\u2022 Autenticaci\u00f3n biom\u00e9trica\n'
-              '\u2022 Roles de usuario (admin/staff/cliente)',
+              '\u2022 Bloqueo de app con biometr\u00eda\n'
+              '\u2022 Modo oscuro\n'
+              '\u2022 Recuperaci\u00f3n de contrase\u00f1a por correo',
             ),
             _buildSection(
               'Tecnolog\u00edas',
@@ -66,9 +66,9 @@ class AboutScreen extends StatelessWidget {
               '\u00a9 2024 Todos los derechos reservados.',
             ),
             const SizedBox(height: 32),
-            const Center(
+            Center(
               child: Text(
-                'Hecho con Flutter \u2764\ufe0f',
+                'Hecho con Flutter ❤️',
                 style: TextStyle(color: AppColors.textHint),
               ),
             ),
@@ -93,7 +93,7 @@ class AboutScreen extends StatelessWidget {
             content,
             style: AppTextStyles.body.copyWith(height: 1.6, color: AppColors.textSecondary),
           ),
-          const Divider(height: 32, color: AppColors.border),
+          Divider(height: 32, color: AppColors.border),
         ],
       ),
     );

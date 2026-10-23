@@ -66,6 +66,18 @@ const validateMongoId = (field = 'id') => [
   param(field).isMongoId().withMessage(`ID de ${field} inválido`),
 ];
 
+const validateForgotPassword = [
+  body('email').isEmail().withMessage('Email inválido').normalizeEmail().toLowerCase(),
+];
+
+const validateResetPassword = [
+  body('resetToken').notEmpty().withMessage('Código de restablecimiento requerido'),
+  body('newPassword')
+    .isLength({ min: 8 }).withMessage('Contraseña mínimo 8 caracteres')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/)
+    .withMessage('Contraseña debe tener mayúscula, minúscula, número y símbolo (@$!%*?&)'),
+];
+
 module.exports = {
   handleValidationErrors,
   validateRegister,
@@ -75,4 +87,6 @@ module.exports = {
   validatePaymentCreate,
   validatePaymentStatusUpdate,
   validateMongoId,
+  validateForgotPassword,
+  validateResetPassword,
 };

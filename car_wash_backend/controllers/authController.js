@@ -1,6 +1,8 @@
 const User = require('../models/userModel');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const logger = require('../utils/logger');
+const { sendMail } = require('../utils/mailer');
 const { AppError, UnauthorizedError, NotFoundError, ValidationError } = require('../utils/AppError');
 
 if (!process.env.JWT_SECRET) {
@@ -12,11 +14,11 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 const generateToken = (userId, role = 'user') => {
-  return jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ userId, role, type: 'access' }, process.env.JWT_SECRET, { expiresIn: '1h' });
 };
 
 const generateRefreshToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
+  return jwt.sign({ userId, type: 'refresh' }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
     expiresIn: '7d',
   });
 };
@@ -138,6 +140,12 @@ exports.refreshToken = async (req, res, next) => {
       process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET
     );
 
+    // Solo aceptamos refresh tokens reales: un access token (o un token viejo sin
+    // claim type) no puede usarse para renovar sesión.
+    if (decoded.type !== 'refresh') {
+      throw new UnauthorizedError('Token inválido o expirado');
+    }
+
     const user = await User.findById(decoded.userId);
     if (!user) {
       throw new UnauthorizedError('Usuario no encontrado');
@@ -174,7 +182,12 @@ exports.googleLogin = async (req, res, next) => {
       throw new UnauthorizedError('Token de Google inválido');
     }
 
-    if (GOOGLE_CLIENT_ID && data.aud !== GOOGLE_CLIENT_ID) {
+    if (!GOOGLE_CLIENT_ID) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('GOOGLE_CLIENT_ID no está configurado en producción');
+        throw new AppError('Configuración del servidor incompleta', 500, 'SERVER_CONFIG');
+      }
+    } else if (data.aud !== GOOGLE_CLIENT_ID) {
       throw new UnauthorizedError('Token de Google no emitido para esta aplicación');
     }
 
@@ -258,6 +271,121 @@ exports.changePassword = async (req, res, next) => {
     logger.info('Contraseña cambiada', { userId });
 
     res.status(200).json({ message: 'Contraseña actualizada exitosamente' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Genera un token de reset a partir de bytes aleatorios y guarda su hash sha256
+ * en el usuario. El token plano nunca toca la base de datos.
+ */
+const issueResetToken = async (user) => {
+  const token = crypto.randomBytes(32).toString('hex');
+  user.resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+  user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 minutos
+  await user.save();
+  return token;
+};
+
+const resetEmailTemplate = (link, code) => `
+  <p>Hola,</p>
+  <p>Recibimos una solicitud para restablecer tu contraseña en Lavadero App.</p>
+  <p><a href="${link}">Restablecer contraseña</a></p>
+  <p>O copia este código en la app:</p>
+  <p style="font-size:18px;font-weight:bold;letter-spacing:1px">${code}</p>
+  <p>Si no fuiste tú, ignora este correo.</p>
+  <p style="color:#888">El código expira en 15 minutos.</p>
+`;
+
+const resetTextTemplate = (code) =>
+  `Recibimos una solicitud para restablecer tu contraseña en Lavadero App.\n\n` +
+  `Código: ${code}\n\n` +
+  `Ingresa este código en la app (o usa el enlace del correo si lo incluye).\n` +
+  `El código expira en 15 minutos. Si no fuiste tú, ignora este correo.`;
+
+/**
+ * @desc    Solicita reset de contraseña. Envía el código por email (SMTP) o
+ *          lo muestra en logs solo en desarrollo sin SMTP.
+ * @route   POST /api/auth/forgot-password
+ * @access  Público
+ */
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    // Respuesta genérica: no filtramos si el email existe (previene enumeración).
+    const generic = { message: 'Si el correo está registrado, enviaremos instrucciones para restablecer la contraseña' };
+
+    const user = await User.findOne({ email });
+    if (!user || !user.password) {
+      // Cuentas de Google no tienen contraseña local: nada que resetear por este vía.
+      return res.status(200).json(generic);
+    }
+
+    const token = await issueResetToken(user);
+
+    const frontendBase = process.env.APP_RESET_URL; // opcional: URL web de reset
+    const link = frontendBase
+      ? `${frontendBase.replace(/\/$/, '')}?token=${token}`
+      : `http://localhost:3000/reset-password?token=${token}`;
+
+    const sent = await sendMail(
+      user.email,
+      'Restablecer contraseña - Lavadero App',
+      resetTextTemplate(token),
+      resetEmailTemplate(link, token)
+    );
+
+    if (!sent) {
+      if (process.env.NODE_ENV === 'production') {
+        logger.warn('SMTP no configurado en producción: no se pudo enviar el email de reset', { userId: user._id });
+      } else {
+        // Fallback de desarrollo: el "servidor de correo" son los logs.
+        logger.info('SMTP no configurado. Código de reset (solo desarrollo):', {
+          email: user.email,
+          resetCode: token,
+          expiresIn: '15 minutos',
+        });
+      }
+    } else {
+      logger.info('Email de reset enviado', { userId: user._id });
+    }
+
+    res.status(200).json(generic);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * @desc    Restablece la contraseña usando el código recibido por email
+ * @route   POST /api/auth/reset-password
+ * @access  Público
+ */
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    const hashed = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const user = await User.findOne({
+      resetPasswordToken: hashed,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      throw new ValidationError('Código inválido o expirado. Solicita uno nuevo');
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save(); // el pre-save hashea y la validación del schema aplica
+    await user.resetLoginAttempts();
+
+    logger.info('Contraseña restablecida', { userId: user._id });
+
+    res.status(200).json({ message: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión' });
   } catch (err) {
     next(err);
   }

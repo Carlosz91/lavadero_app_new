@@ -4,6 +4,7 @@ const carSchema = new mongoose.Schema({
   plate: { type: String, required: true, trim: true },
   model: { type: String, required: true, trim: true },
   brand: { type: String, required: true, trim: true },
+  color: { type: String, default: null, trim: true },
   washType: {
     type: String,
     required: true,

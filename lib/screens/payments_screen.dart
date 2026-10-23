@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
@@ -5,18 +6,21 @@ import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
+import '../utils/formatters.dart';
 import 'payment_service.dart';
 
-class PaymentsScreen extends StatefulWidget {
+/// Página embebible de pagos. Sin Scaffold ni AppBar: vive en la barra
+/// inferior del shell y pinta su propio header con gradiente de marca.
+class PaymentsView extends StatefulWidget {
   final String userEmail;
 
-  const PaymentsScreen({super.key, required this.userEmail});
+  const PaymentsView({super.key, required this.userEmail});
 
   @override
-  State<PaymentsScreen> createState() => _PaymentsScreenState();
+  State<PaymentsView> createState() => _PaymentsViewState();
 }
 
-class _PaymentsScreenState extends State<PaymentsScreen>
+class _PaymentsViewState extends State<PaymentsView>
     with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   bool _hasError = false;
@@ -101,7 +105,7 @@ class _PaymentsScreenState extends State<PaymentsScreen>
     return {
       'id': p['_id'] ?? '',
       'plate': p['plate'] ?? 'N/A',
-      'amount': 'Gs. ${_formatAmount(amountDouble)}',
+      'amount': formatGs(amountDouble),
       'amountDouble': amountDouble,
       'method': p['method'] as String? ?? 'Otro',
       'status': p['status'] ?? 'Pendiente',
@@ -110,14 +114,14 @@ class _PaymentsScreenState extends State<PaymentsScreen>
     };
   }
 
-  String _formatAmount(double amount) {
-    if (amount >= 1000) {
-      return amount.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
-    }
-    return amount.toStringAsFixed(0);
+  /// Key de idempotencia única por intento. El backend la exige en
+  /// create-checkout-session y cachea la respuesta bajo la key: usar una key
+  /// estable por pago haría que un error viejo (ej. Stripe caído) se reproduzca
+  /// en cada reintento, así que cada tap genera la suya.
+  String _generateIdempotencyKey() {
+    final random = Random();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '$timestamp-${random.nextInt(999999)}-${random.nextInt(999999)}';
   }
 
   Future<void> _payWithStripe(Map<String, dynamic> payment) async {
@@ -125,13 +129,11 @@ class _PaymentsScreenState extends State<PaymentsScreen>
     try {
       final httpService = HttpService();
       await httpService.loadToken();
+      // El monto nunca viaja por el cliente: el backend toma el pago guardado.
       final response = await httpService.post(
-        '${ApiConfig.baseUrl}/api/stripe/create-checkout-session',
-        {
-          'paymentId': payment['id'],
-          'plate': payment['plate'],
-          'amount': payment['amountDouble'],
-        },
+        ApiConfig.stripeCheckoutUrl,
+        {'paymentId': payment['id']},
+        idempotencyKey: _generateIdempotencyKey(),
       );
       final url = response['url'] as String?;
       if (url != null) {
@@ -139,55 +141,41 @@ class _PaymentsScreenState extends State<PaymentsScreen>
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         } else {
-          _showSnackBar('No se pudo abrir Stripe', success: false);
+          if (!mounted) return;
+          AppSnackBar.error(context, 'No se pudo abrir Stripe');
         }
       }
     } catch (e) {
-      _showSnackBar('Error al conectar con Stripe: $e', success: false);
+      if (!mounted) return;
+      AppSnackBar.error(context, 'Error al conectar con Stripe: $e');
     } finally {
-      setState(() => _processingPayment = false);
+      if (mounted) setState(() => _processingPayment = false);
     }
-  }
-
-  Future<void> _processPayment(Map<String, dynamic> payment, String method) async {
-    setState(() => _processingPayment = true);
-    try {
-      await PaymentService.updatePaymentStatus(payment['id'], 'Pagado', method: method);
-      _showSnackBar('Pago con $method registrado exitosamente', success: true);
-      await _fetchAll(silent: true);
-      _tabController.animateTo(1);
-    } catch (e) {
-      _showSnackBar('Error en el pago: $e', success: false);
-    } finally {
-      setState(() => _processingPayment = false);
-    }
-  }
-
-  void _showSnackBar(String message, {required bool success}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: success ? AppColors.success : AppColors.error,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _processingPayment || _isLoading
-          ? const LoadingState(message: 'Procesando...')
-          : _hasError
-              ? ErrorState(message: _errorMessage, onRetry: _fetchAll)
-              : _buildContent(),
+    if (_processingPayment) {
+      return const LoadingState(message: 'Abriendo Stripe...');
+    }
+
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: _isLoading
+              ? const SkeletonList(count: 4)
+              : _hasError
+                  ? ErrorState(message: _errorMessage, onRetry: _fetchAll)
+                  : _buildContent(),
+        ),
+      ],
     );
   }
 
   Widget _buildContent() {
     return Column(
       children: [
-        _buildHeader(),
         _buildSummaryRow(),
         _buildTabBar(),
         Expanded(child: _buildTabContent()),
@@ -195,9 +183,10 @@ class _PaymentsScreenState extends State<PaymentsScreen>
     );
   }
 
+  /// Header de página con gradiente de marca y stats de resumen. El shell no
+  /// tiene AppBar; este absorbe el inset de la barra de estado.
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top, left: 20, right: 20, bottom: 20),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -205,40 +194,56 @@ class _PaymentsScreenState extends State<PaymentsScreen>
           colors: [AppColors.primary, AppColors.primaryDark],
         ),
       ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        MediaQuery.of(context).padding.top + 14,
+        12,
+        16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Mis Pagos',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Mis Pagos',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Pagá con Stripe en un solo toque',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                 onPressed: () => _fetchAll(silent: true),
+                tooltip: 'Actualizar',
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
             children: [
-              _buildHeaderStat(Icons.pending_actions, 'Pendiente', _totalPending, AppColors.warning),
+              _buildHeaderStat(
+                  Icons.pending_actions, 'Pendiente', _totalPending, AppColors.warning),
               const SizedBox(width: 24),
-              _buildHeaderStat(Icons.check_circle, 'Pagado', _totalPaid, AppColors.success),
+              _buildHeaderStat(
+                  Icons.check_circle, 'Pagado', _totalPaid, AppColors.success),
             ],
           ),
         ],
@@ -257,7 +262,7 @@ class _PaymentsScreenState extends State<PaymentsScreen>
             children: [
               Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
               Text(
-                'Gs. ${_formatAmount(amount)}',
+                formatGs(amount),
                 style: TextStyle(
                   color: amount > 0 ? color : Colors.white,
                   fontWeight: FontWeight.bold,
@@ -316,7 +321,8 @@ class _PaymentsScreenState extends State<PaymentsScreen>
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: AppColors.inputFill,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
       ),
       child: TabBar(
         controller: _tabController,
@@ -422,7 +428,7 @@ class _PaymentsScreenState extends State<PaymentsScreen>
                   color: AppColors.textHint.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.receipt_long, size: 64, color: AppColors.textHint),
+                child: Icon(Icons.receipt_long, size: 64, color: AppColors.textHint),
               ),
               const SizedBox(height: 24),
               Text('Sin historial', style: AppTextStyles.h3),
@@ -456,18 +462,18 @@ class _PaymentsScreenState extends State<PaymentsScreen>
       case 'Pagado': return AppColors.success;
       case 'Pendiente': return AppColors.warning;
       case 'Cancelado': return AppColors.error;
-      case 'Reembolsado': return Colors.purple;
+      case 'Reembolsado': return const Color(0xFF8B5CF6);
       default: return AppColors.textHint;
     }
   }
 
   IconData _statusIcon(String status) {
     switch (status) {
-      case 'Pagado': return Icons.check_circle;
-      case 'Pendiente': return Icons.pending_actions;
-      case 'Cancelado': return Icons.cancel;
-      case 'Reembolsado': return Icons.replay;
-      default: return Icons.help_outline;
+      case 'Pagado': return Icons.check_circle_rounded;
+      case 'Pendiente': return Icons.pending_actions_rounded;
+      case 'Cancelado': return Icons.cancel_rounded;
+      case 'Reembolsado': return Icons.replay_rounded;
+      default: return Icons.help_outline_rounded;
     }
   }
 
@@ -488,16 +494,9 @@ class _PaymentsScreenState extends State<PaymentsScreen>
     final statusColor = _statusColor(status);
     final isActivePending = isPending && status == 'Pendiente';
 
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: status == 'Pendiente' ? AppColors.warning.withValues(alpha: 0.3) : AppColors.border,
-        ),
-      ),
-      child: Container(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AppCard(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
@@ -558,34 +557,28 @@ class _PaymentsScreenState extends State<PaymentsScreen>
                     child: SizedBox(
                       height: 44,
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.payment, size: 18),
-                        label: const Text('Pagar'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.success,
-                          side: const BorderSide(color: AppColors.success, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () => _showPaymentOptions(payment),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SizedBox(
-                      height: 44,
-                      child: OutlinedButton.icon(
                         icon: const Icon(Icons.credit_card, size: 18),
-                        label: const Text('Stripe'),
+                        label: const Text('Pagar con Stripe'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF635BFF),
-                          side: const BorderSide(color: Color(0xFF635BFF), width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          side: const BorderSide(
+                            color: Color(0xFF635BFF),
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                         onPressed: () => _payWithStripe(payment),
                       ),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Los métodos en persona (efectivo/tarjeta/transferencia) los registra el personal del lavadero.',
+                style: AppTextStyles.caption,
               ),
             ],
             if (!isActivePending) ...[
@@ -667,7 +660,7 @@ class _PaymentsScreenState extends State<PaymentsScreen>
         return AppColors.primary;
       case 'Transferencia':
       case 'Transferencia Bancaria':
-        return Colors.purple;
+        return const Color(0xFF8B5CF6);
       case 'Mercado Pago':
         return const Color(0xFF00B1EA);
       case 'Stripe':
@@ -678,106 +671,20 @@ class _PaymentsScreenState extends State<PaymentsScreen>
         return AppColors.textHint;
     }
   }
+}
 
-  void _showPaymentOptions(Map<String, dynamic> payment) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.payment, color: AppColors.primary),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Seleccionar método', style: AppTextStyles.h3.copyWith(color: AppColors.primary)),
-                      Text(payment['amount'], style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _paymentOptionButton(
-                title: 'Efectivo',
-                icon: Icons.attach_money,
-                color: AppColors.success,
-                onTap: () { Navigator.pop(context); _processPayment(payment, 'Efectivo'); },
-              ),
-              const SizedBox(height: 10),
-              _paymentOptionButton(
-                title: 'Tarjeta de Crédito/Débito',
-                icon: Icons.credit_card,
-                color: AppColors.primary,
-                onTap: () { Navigator.pop(context); _processPayment(payment, 'Tarjeta'); },
-              ),
-              const SizedBox(height: 10),
-              _paymentOptionButton(
-                title: 'Transferencia Bancaria',
-                icon: Icons.account_balance,
-                color: Colors.purple,
-                onTap: () { Navigator.pop(context); _processPayment(payment, 'Transferencia'); },
-              ),
-              const SizedBox(height: 10),
-              _paymentOptionButton(
-                title: 'Mercado Pago',
-                icon: Icons.payment,
-                color: const Color(0xFF00B1EA),
-                onTap: () { Navigator.pop(context); _processPayment(payment, 'Mercado Pago'); },
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        );
-      },
-    );
-  }
+/// Wrapper standalone por compatibilidad: Scaffold + AppBar con gradiente
+/// alrededor de la misma página embebible.
+class PaymentsScreen extends StatelessWidget {
+  final String userEmail;
 
-  Widget _paymentOptionButton({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: color,
-          side: BorderSide(color: color, width: 1.5),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        onPressed: onTap,
-        child: Row(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary),
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, color: color, size: 16),
-          ],
-        ),
-      ),
+  const PaymentsScreen({super.key, required this.userEmail});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: GradientAppBar(title: 'Mis Pagos'),
+      body: PaymentsView(userEmail: userEmail),
     );
   }
 }

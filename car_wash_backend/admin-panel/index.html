@@ -210,6 +210,8 @@
     .badge-en-progreso { background: #e8f4fd; color: #2563eb; }
     .badge-completado { background: #e8f5e9; color: #16a34a; }
     .badge-pagado { background: #e8f5e9; color: #16a34a; }
+    .badge-cancelado { background: #fef2f2; color: #dc2626; }
+    .badge-reembolsado { background: #f5f3ff; color: #7c3aed; }
 
     /* --- SEARCH USERS --- */
     .search-box {
@@ -388,13 +390,52 @@
 
       <!-- ===== REPORTS PAGE ===== -->
       <div class="page" id="page-reports">
+        <div class="card-widget" style="margin-bottom:20px;">
+          <div class="card-widget-header"><i class="fas fa-filter" style="margin-right:8px;"></i>Filtro de Movimiento</div>
+          <div class="card-widget-body" style="padding:20px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+              <div>
+                <div style="font-size:12px;color:var(--gray-500);margin-bottom:4px;">Desde</div>
+                <input type="date" id="repFrom" style="padding:8px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;">
+              </div>
+              <div>
+                <div style="font-size:12px;color:var(--gray-500);margin-bottom:4px;">Hasta</div>
+                <input type="date" id="repTo" style="padding:8px;border:1px solid var(--gray-300);border-radius:8px;font-size:13px;">
+              </div>
+              <button onclick="loadReports()" style="padding:9px 16px;background:var(--primary,#2563eb);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;"><i class="fas fa-magnifying-glass" style="margin-right:6px;"></i>Aplicar</button>
+              <button onclick="exportarCSV()" style="padding:9px 16px;background:var(--gray-100,#f1f5f9);color:#334155;border:1px solid var(--gray-300,#cbd5e1);border-radius:8px;cursor:pointer;font-size:13px;"><i class="fas fa-file-csv" style="margin-right:6px;"></i>Exportar CSV</button>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;" id="repPresets"></div>
+          </div>
+        </div>
         <div class="stats-grid" id="reportStats">
           <div class="loading"><i class="fas fa-spinner fa-spin" style="margin-right:8px;"></i>Cargando...</div>
         </div>
-        <div class="card-widget">
+        <div class="card-widget" style="margin-bottom:20px;">
+          <div class="card-widget-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span><i class="fas fa-chart-column" style="margin-right:8px;"></i>Movimiento por d&iacute;a</span>
+          </div>
+          <div class="card-widget-body" id="dailyChart" style="padding:20px;">
+            <div class="loading">Cargando...</div>
+          </div>
+        </div>
+        <div class="card-widget" style="margin-bottom:20px;">
           <div class="card-widget-header"><i class="fas fa-credit-card" style="margin-right:8px;"></i>Resumen de Pagos</div>
           <div class="card-widget-body" id="paymentSummary" style="padding:20px;">
             <div class="loading">Cargando...</div>
+          </div>
+        </div>
+        <div class="card-widget">
+          <div class="card-widget-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span><i class="fas fa-table-list" style="margin-right:8px;"></i>Movimientos del per&iacute;odo</span>
+          </div>
+          <div class="card-widget-body">
+            <table>
+              <thead>
+                <tr><th>Fecha</th><th>Patente</th><th>Cliente</th><th>M&eacute;todo</th><th>Estado</th><th>Monto</th></tr>
+              </thead>
+              <tbody id="movementsTable"><tr><td colspan="6" class="loading">Cargando...</td></tr></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -539,6 +580,16 @@ if (authToken && !isTokenExpired(authToken)) {
   localStorage.removeItem('adminEmail');
 }
 
+// --- SANITIZACIÓN HTML (protege contra XSS si la API devuelve contenido con marcado) ---
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // --- NAVIGATION ---
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -568,41 +619,46 @@ async function loadDashboard() {
     }
     dashboardData = await res.json();
   } catch (err) {
-    grid.innerHTML = `<div class="empty-state"><i class="fas fa-circle-exclamation"></i>${err.message}</div>`;
+    grid.innerHTML = `<div class="empty-state"><i class="fas fa-circle-exclamation"></i>${esc(err.message)}</div>`;
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No disponible</td></tr>';
     return;
   }
 
   const d = dashboardData;
   const cars = d.cars || {};
+  const t = d.today || {};
 
   grid.innerHTML = `
     <div class="stat-card">
       <div class="icon blue"><i class="fas fa-car-side"></i></div>
       <div class="info">
-        <div class="label">Total Veh\u00edculos</div>
-        <div class="value">${cars.total ?? 0}</div>
+        <div class="label">Autos Hoy</div>
+        <div class="value">${t.cars ?? 0}</div>
+        <div class="sub">total hist&oacute;rico: ${cars.total ?? 0}</div>
       </div>
     </div>
     <div class="stat-card">
       <div class="icon yellow"><i class="fas fa-hourglass-half"></i></div>
       <div class="info">
-        <div class="label">Pendientes</div>
-        <div class="value">${cars.Pendiente ?? 0}</div>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="icon blue"><i class="fas fa-spinner"></i></div>
-      <div class="info">
-        <div class="label">En Progreso</div>
+        <div class="label">En Progreso (ahora)</div>
         <div class="value">${cars['En Progreso'] ?? 0}</div>
+        <div class="sub">esperando inicio: ${cars.Pendiente ?? 0}</div>
       </div>
     </div>
     <div class="stat-card">
       <div class="icon green"><i class="fas fa-circle-check"></i></div>
       <div class="info">
-        <div class="label">Completados</div>
-        <div class="value">${cars.Completado ?? 0}</div>
+        <div class="label">Completados Hoy</div>
+        <div class="value">${t.completed ?? 0}</div>
+        <div class="sub">hist&oacute;rico: ${cars.Completado ?? 0}</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon teal"><i class="fas fa-circle-dollar"></i></div>
+      <div class="info">
+        <div class="label">Cobrado Hoy</div>
+        <div class="value">Gs. ${(t.collected?.total ?? 0).toLocaleString()}</div>
+        <div class="sub">${t.collected?.count ?? 0} pagos hoy</div>
       </div>
     </div>
     <div class="stat-card">
@@ -610,14 +666,15 @@ async function loadDashboard() {
       <div class="info">
         <div class="label">Usuarios Registrados</div>
         <div class="value">${d.users ?? 0}</div>
+        <div class="sub">nuevos hoy: ${t.newUsers ?? 0}</div>
       </div>
     </div>
     <div class="stat-card">
-      <div class="icon teal"><i class="fas fa-credit-card"></i></div>
+      <div class="icon orange"><i class="fas fa-credit-card"></i></div>
       <div class="info">
-        <div class="label">Pagos Totales</div>
-        <div class="value">${d.payments?.total ?? 0}</div>
-        <div class="sub">${d.payments?.paid?.count ?? 0} pagados, ${d.payments?.pending?.count ?? 0} pendientes</div>
+        <div class="label">Pendiente de Cobro</div>
+        <div class="value">Gs. ${(d.payments?.pending?.total ?? 0).toLocaleString()}</div>
+        <div class="sub">${d.payments?.pending?.count ?? 0} pagos</div>
       </div>
     </div>
   `;
@@ -626,12 +683,12 @@ async function loadDashboard() {
     tbody.innerHTML = d.recentCars.map(c => {
       const st = (c.status || '').toLowerCase().replace(/\s+/g, '-');
       return `<tr>
-        <td><strong>${c.plate || 'N/D'}</strong></td>
-        <td>${c.brand || ''} ${c.model || ''}</td>
-        <td><span class="badge badge-${st}">${c.status}</span></td>
+        <td><strong>${esc(c.plate || 'N/D')}</strong></td>
+        <td>${esc(c.brand || '')} ${esc(c.model || '')}</td>
+        <td><span class="badge badge-${st}">${esc(c.status || 'N/D')}</span></td>
         <td>Gs. ${(c.amount || 0).toLocaleString()}</td>
-        <td>${c.userId?.email || 'N/D'}</td>
-        <td>${new Date(c.createdAt).toLocaleDateString()}</td>
+        <td>${esc(c.userId?.email || 'N/D')}</td>
+        <td>${new Date(c.createdAt).toLocaleString()}</td>
       </tr>`;
     }).join('');
   } else {
@@ -722,7 +779,7 @@ async function cargarPedidos(userId) {
     renderizarPedidos();
   } catch (err) {
     if (err.message !== 'No autorizado') {
-      container.innerHTML = '<div class="empty-state"><i class="fas fa-circle-exclamation"></i>' + err.message + '</div>';
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-circle-exclamation"></i>' + esc(err.message) + '</div>';
     }
   }
 }
@@ -730,21 +787,22 @@ async function cargarPedidos(userId) {
 function renderizarPedidos() {
   const container = document.getElementById('pedidosContainer');
   container.innerHTML = pedidos.map(car => {
-    const statusClass = car.status.toLowerCase().replace(' ', '-');
+    const statusRaw = String(car.status || 'N/D');
+    const statusClass = statusRaw.toLowerCase().replace(' ', '-');
     const statusBadge = 'badge-' + statusClass;
     return `
       <div class="pedido-card">
         <div class="head">
-          <h4><i class="fas fa-car" style="margin-right:8px;color:var(--gray-400);"></i>${car.plate || 'N/D'}</h4>
-          <span class="badge ${statusBadge}">${car.status}</span>
+          <h4><i class="fas fa-car" style="margin-right:8px;color:var(--gray-400);"></i>${esc(car.plate || 'N/D')}</h4>
+          <span class="badge ${statusBadge}">${esc(statusRaw)}</span>
         </div>
         <div class="body">
-          <div class="field"><label>Modelo</label><span>${car.model || 'N/D'}</span></div>
-          <div class="field"><label>Marca</label><span>${car.brand || 'N/D'}</span></div>
-          <div class="field"><label>Tipo de lavado</label><span>${car.washType || 'N/D'}</span></div>
+          <div class="field"><label>Modelo</label><span>${esc(car.model || 'N/D')}</span></div>
+          <div class="field"><label>Marca</label><span>${esc(car.brand || 'N/D')}</span></div>
+          <div class="field"><label>Tipo de lavado</label><span>${esc(car.washType || 'N/D')}</span></div>
           <div class="field"><label>Monto</label><span>Gs. ${(car.amount || 0).toLocaleString()}</span></div>
           <div class="field"><label>Registrado</label><span>${new Date(car.createdAt).toLocaleDateString()}</span></div>
-          ${car.scheduledDate ? `<div class="field"><label>Agendado</label><span>${new Date(car.scheduledDate).toLocaleDateString()} ${car.scheduledTime || ''}</span></div>` : ''}
+          ${car.scheduledDate ? `<div class="field"><label>Agendado</label><span>${new Date(car.scheduledDate).toLocaleDateString()} ${esc(car.scheduledTime || '')}</span></div>` : ''}
         </div>
         <div class="foot">
           ${car.status === 'Pendiente' ? `<button class="btn-progreso" onclick="moverAProgreso('${car._id}')"><i class="fas fa-play" style="margin-right:4px;"></i>Mover a En Progreso</button>` : ''}
@@ -804,56 +862,103 @@ async function cerrarPedido(carId) {
 }
 
 // --- REPORTS ---
+let reportsData = null;
+
+const fmtDate = d => {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
+function repSetRange(preset) {
+  const now = new Date();
+  const from = document.getElementById('repFrom');
+  const to = document.getElementById('repTo');
+  if (preset === 'hoy') { from.value = fmtDate(now); to.value = fmtDate(now); }
+  else if (preset === '7d') { const s = new Date(); s.setDate(s.getDate() - 6); from.value = fmtDate(s); to.value = fmtDate(now); }
+  else if (preset === '30d') { const s = new Date(); s.setDate(s.getDate() - 29); from.value = fmtDate(s); to.value = fmtDate(now); }
+  else if (preset === 'mes') { from.value = fmtDate(new Date(now.getFullYear(), now.getMonth(), 1)); to.value = fmtDate(now); }
+  else if (preset === 'mesPasado') { from.value = fmtDate(new Date(now.getFullYear(), now.getMonth() - 1, 1)); to.value = fmtDate(new Date(now.getFullYear(), now.getMonth(), 0)); }
+  loadReports();
+}
+
+function repInitPresets() {
+  const container = document.getElementById('repPresets');
+  if (!container || container.childElementCount) return;
+  [['hoy', 'Hoy'], ['7d', 'Últimos 7 días'], ['30d', 'Últimos 30 días'], ['mes', 'Este mes'], ['mesPasado', 'Mes pasado']]
+    .forEach(([id, label]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.onclick = () => repSetRange(id);
+      b.style.cssText = 'padding:6px 14px;border-radius:999px;border:1px solid var(--gray-300,#cbd5e1);background:#fff;color:#334155;cursor:pointer;font-size:12px;';
+      container.appendChild(b);
+    });
+}
+
 async function loadReports() {
+  repInitPresets();
   const reportStats = document.getElementById('reportStats');
   const paymentSummary = document.getElementById('paymentSummary');
+  const fromEl = document.getElementById('repFrom');
+  const toEl = document.getElementById('repTo');
+  // Primer arranque: mes en curso por defecto.
+  if (!fromEl.value || !toEl.value) {
+    const now = new Date();
+    fromEl.value = fmtDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    toEl.value = fmtDate(now);
+  }
   try {
-    const res = await apiFetch(`${API_BASE}/api/admin/dashboard`);
+    const params = new URLSearchParams({ from: fromEl.value, to: toEl.value });
+    const res = await apiFetch(`${API_BASE}/api/admin/reports?${params}`);
     if (!res.ok) {
       let msg = 'Error al cargar reportes';
       try { const e = await res.json(); msg = e.error || msg; } catch {}
       throw new Error(msg);
     }
-    dashboardData = await res.json();
+    reportsData = await res.json();
   } catch (err) {
-    reportStats.innerHTML = `<div class="empty-state"><i class="fas fa-circle-exclamation"></i>${err.message}</div>`;
+    reportStats.innerHTML = `<div class="empty-state"><i class="fas fa-circle-exclamation"></i>${esc(err.message)}</div>`;
     paymentSummary.innerHTML = '';
+    document.getElementById('dailyChart').innerHTML = '';
+    document.getElementById('movementsTable').innerHTML = '<tr><td colspan="6" class="empty-state">No disponible</td></tr>';
     return;
   }
+  renderReports(reportsData);
+  document.getElementById('lastUpdate').textContent = 'Actualizado ' + new Date().toLocaleTimeString();
+}
 
-  const d = dashboardData;
-  const cars = d.cars || {};
-  const payments = d.payments || {};
-  const paid = payments.paid || {};
-  const pending = payments.pending || {};
+function renderReports(d) {
+  const s = d.summary || {};
+  const p = s.payments || {};
+  const pagado = p.Pagado || { count: 0, total: 0 };
+  const pendiente = p.Pendiente || { count: 0, total: 0 };
+  const cancelado = p.Cancelado || { count: 0, total: 0 };
+  const reembolsado = p.Reembolsado || { count: 0, total: 0 };
+  const totalTx = pagado.count + pendiente.count + cancelado.count + reembolsado.count;
+  const autos = s.cars || 0;
+  const completados = s.completados || 0;
 
-  const totalIngresos = paid.total || 0;
-  const pendienteIngresos = pending.total || 0;
-  const totalOps = cars.total || 0;
-  const completados = cars.Completado || 0;
-
-  reportStats.innerHTML = `
+  document.getElementById('reportStats').innerHTML = `
     <div class="stat-card">
       <div class="icon green"><i class="fas fa-sack-dollar"></i></div>
       <div class="info">
         <div class="label">Ingresos Cobrados</div>
-        <div class="value">Gs. ${totalIngresos.toLocaleString()}</div>
-        <div class="sub">${paid.count || 0} pagos</div>
+        <div class="value">Gs. ${pagado.total.toLocaleString()}</div>
+        <div class="sub">${pagado.count} pagos del rango</div>
       </div>
     </div>
     <div class="stat-card">
       <div class="icon yellow"><i class="fas fa-clock"></i></div>
       <div class="info">
         <div class="label">Pendiente de Cobro</div>
-        <div class="value">Gs. ${pendienteIngresos.toLocaleString()}</div>
-        <div class="sub">${pending.count || 0} pagos</div>
+        <div class="value">Gs. ${pendiente.total.toLocaleString()}</div>
+        <div class="sub">${pendiente.count} pagos del rango</div>
       </div>
     </div>
     <div class="stat-card">
       <div class="icon purple"><i class="fas fa-rotate"></i></div>
       <div class="info">
-        <div class="label">Total Operaciones</div>
-        <div class="value">${totalOps}</div>
+        <div class="label">Autos del Per&iacute;odo</div>
+        <div class="value">${autos}</div>
         <div class="sub">${completados} completados</div>
       </div>
     </div>
@@ -861,31 +966,111 @@ async function loadReports() {
       <div class="icon teal"><i class="fas fa-users-gear"></i></div>
       <div class="info">
         <div class="label">Eficiencia</div>
-        <div class="value">${totalOps > 0 ? Math.round(completados / totalOps * 100) : 0}%</div>
-        <div class="sub">tasa de finalización</div>
+        <div class="value">${autos > 0 ? Math.round(completados / autos * 100) : 0}%</div>
+        <div class="sub">tasa de finalizaci&oacute;n</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="icon blue"><i class="fas fa-user-plus"></i></div>
+      <div class="info">
+        <div class="label">Usuarios Nuevos</div>
+        <div class="value">${s.newUsers || 0}</div>
+        <div class="sub">registrados en el rango</div>
       </div>
     </div>
   `;
 
-  paymentSummary.innerHTML = `
+  renderDaily(d.daily || []);
+  renderMovements(d.movements || []);
+
+  document.getElementById('paymentSummary').innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
       <div style="background:#f0fdf4;border-radius:10px;padding:16px;border:1px solid #bbf7d0;">
         <div style="font-size:13px;color:#15803d;font-weight:600;margin-bottom:4px;">Pagados</div>
-        <div style="font-size:22px;font-weight:700;color:#16a34a;">${paid.count || 0}</div>
-        <div style="font-size:13px;color:#15803d;">Gs. ${totalIngresos.toLocaleString()}</div>
+        <div style="font-size:22px;font-weight:700;color:#16a34a;">${pagado.count}</div>
+        <div style="font-size:13px;color:#15803d;">Gs. ${pagado.total.toLocaleString()}</div>
       </div>
       <div style="background:#fefce8;border-radius:10px;padding:16px;border:1px solid #fde68a;">
         <div style="font-size:13px;color:#a16207;font-weight:600;margin-bottom:4px;">Pendientes</div>
-        <div style="font-size:22px;font-weight:700;color:#ca8a04;">${pending.count || 0}</div>
-        <div style="font-size:13px;color:#a16207;">Gs. ${pendienteIngresos.toLocaleString()}</div>
+        <div style="font-size:22px;font-weight:700;color:#ca8a04;">${pendiente.count}</div>
+        <div style="font-size:13px;color:#a16207;">Gs. ${pendiente.total.toLocaleString()}</div>
       </div>
       <div style="background:#f8fafc;border-radius:10px;padding:16px;border:1px solid #cbd5e1;">
-        <div style="font-size:13px;color:#475569;font-weight:600;margin-bottom:4px;">Total General</div>
-        <div style="font-size:22px;font-weight:700;color:#1e293b;">${payments.total || 0}</div>
-        <div style="font-size:13px;color:#64748b;">transacciones</div>
+        <div style="font-size:13px;color:#475569;font-weight:600;margin-bottom:4px;">Cancelados / Reembolsados</div>
+        <div style="font-size:22px;font-weight:700;color:#1e293b;">${cancelado.count + reembolsado.count}</div>
+        <div style="font-size:13px;color:#64748b;">del rango</div>
+      </div>
+      <div style="background:#eff6ff;border-radius:10px;padding:16px;border:1px solid #bfdbfe;">
+        <div style="font-size:13px;color:#1d4ed8;font-weight:600;margin-bottom:4px;">Total Transacciones</div>
+        <div style="font-size:22px;font-weight:700;color:#1d4ed8;">${totalTx}</div>
+        <div style="font-size:13px;color:#1d4ed8;">del rango</div>
       </div>
     </div>
   `;
+}
+
+function renderDaily(daily) {
+  const el = document.getElementById('dailyChart');
+  if (!daily.length) {
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-chart-column"></i>Sin movimientos en este rango</div>';
+    return;
+  }
+  const shown = daily.length > 30 ? daily.slice(-30) : daily;
+  const max = Math.max(1, ...shown.map(x => x.collected));
+  const bars = shown.map(x => {
+    const h = Math.max(6, Math.round(x.collected / max * 88));
+    return `<div style="flex:1;min-width:10px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;" title="${x.day}: Gs. ${x.collected.toLocaleString()} cobrados · ${x.payments} pago(s) · ${x.cars} auto(s) registrado(s)">
+      <div style="width:100%;max-width:30px;margin:0 auto;height:${h}%;background:linear-gradient(180deg,#14b8a6,#0891b2);border-radius:6px 6px 0 0;opacity:.9;"></div>
+    </div>`;
+  }).join('');
+  const nota = daily.length > 30 ? '<div style="font-size:11px;color:var(--gray-500,#64748b);margin-top:8px;">Mostrando los últimos 30 días del rango</div>' : '';
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-end;gap:4px;height:110px;">${bars}</div>
+    <div style="font-size:11px;color:var(--gray-500,#64748b);margin-top:8px;">Altura = cobrado del d&iacute;a (Gs.). Pas&aacute; el mouse por cada barra para el detalle (fecha, cobrado, pagos, autos).</div>
+    ${nota}
+  `;
+}
+
+function renderMovements(movs) {
+  const el = document.getElementById('movementsTable');
+  if (!movs.length) {
+    el.innerHTML = '<tr><td colspan="6" class="empty-state">Sin movimientos en este rango</td></tr>';
+    return;
+  }
+  el.innerHTML = movs.map(m => {
+    const st = (m.status || '').toLowerCase().replace(/\s+/g, '-');
+    return `<tr>
+      <td>${new Date(m.date).toLocaleString()}</td>
+      <td><strong>${esc(m.plate || 'N/D')}</strong></td>
+      <td>${esc(m.userId?.email || 'N/D')}</td>
+      <td>${esc(m.method || 'N/D')}</td>
+      <td><span class="badge badge-${st}">${esc(m.status || 'N/D')}</span></td>
+      <td>Gs. ${(m.amount || 0).toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportarCSV() {
+  const movs = reportsData?.movements || [];
+  if (!movs.length) { alert('No hay movimientos en el rango seleccionado'); return; }
+  const from = document.getElementById('repFrom').value || 'inicio';
+  const to = document.getElementById('repTo').value || 'fin';
+  const rows = [['Fecha', 'Patente', 'Cliente', 'Método', 'Estado', 'Monto (Gs)']];
+  movs.forEach(m => rows.push([
+    new Date(m.date).toLocaleString(),
+    m.plate || '',
+    m.userId?.email || '',
+    m.method || '',
+    m.status || '',
+    m.amount ?? 0,
+  ]));
+  const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(';')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `movimientos_${from}_a_${to}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // --- ENTER key on login ---
