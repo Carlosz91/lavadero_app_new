@@ -27,10 +27,14 @@ exports.authLimiter = rateLimit({
   skip: isTest,
 });
 
+// Registro: 10 cuentas exitosas por hora por IP. Los intentos fallidos
+// (validación, email duplicado) no consumen cupo: un cliente que se equivoca
+// al completar el formulario no queda bloqueado durante una hora.
 exports.registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: isTest() ? 0 : devMax(3),
-  message: 'Demasiados registros desde esta dirección IP',
+  max: isTest() ? 0 : devMax(10),
+  skipFailedRequests: true,
+  message: 'Demasiados registros desde esta dirección IP, intenta más tarde',
   skip: isTest,
 });
 

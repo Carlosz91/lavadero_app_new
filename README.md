@@ -58,6 +58,12 @@ flutter run
 
 Para Google Sign-In se puede configurar el server client id con `--dart-define=GOOGLE_SERVER_CLIENT_ID=...` (hay un default de desarrollo).
 
+La app elige el backend automáticamente: los builds **release/profile** apuntan a producción en Railway y los builds **debug** usan `localhost:5000` (o `10.0.2.2:5000` en el emulador Android). Para apuntar a otro entorno:
+
+```bash
+flutter run --dart-define=API_BASE_URL=https://mi-servidor
+```
+
 ### Build release con ofuscación
 
 ```bash

@@ -97,7 +97,7 @@ class LoginScreenState extends State<LoginScreen> {
         setState(() { _errorMessage = e.message; });
       } catch (e) {
         if (!mounted) return;
-        setState(() { _errorMessage = 'Error inesperado. Intenta nuevamente.'; });
+        setState(() { _errorMessage = friendlyErrorMessage(e); });
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -151,7 +151,7 @@ class LoginScreenState extends State<LoginScreen> {
       setState(() { _errorMessage = e.message; });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _errorMessage = 'Error al iniciar con Google. Intenta nuevamente.'; });
+      setState(() { _errorMessage = friendlyErrorMessage(e); });
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

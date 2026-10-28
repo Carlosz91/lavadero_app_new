@@ -1,10 +1,27 @@
+import 'package:flutter/foundation.dart';
+
 /// Configuración centralizada para la API
 class ApiConfig {
-  // ✅ Base URL configurable por ambiente
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:5000', // Emulador Android
-  );
+  /// URL forzada por `--dart-define=API_BASE_URL=...`. Si está vacía se usa
+  /// el default según el modo de compilación.
+  static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL');
+
+  /// ✅ Base URL del backend.
+  ///
+  /// - Release/Profile: producción en Railway.
+  /// - Debug en Android: `10.0.2.2` (alias del host en el emulador).
+  /// - Debug en el resto (Windows, web, iOS sim): `localhost`.
+  ///
+  /// Para apuntar a otro entorno usar:
+  /// `flutter run --dart-define=API_BASE_URL=https://mi-servidor`
+  static String get baseUrl {
+    if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
+    if (!kDebugMode) return 'https://lavaderoappnew-production.up.railway.app';
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:5000';
+    }
+    return 'http://localhost:5000';
+  }
 
   // ✅ Timeouts
   static const Duration connectionTimeout = Duration(seconds: 15);

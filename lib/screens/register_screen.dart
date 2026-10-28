@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:async';
 import '../config/api_config.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
@@ -93,10 +92,8 @@ class RegisterScreenState extends State<RegisterScreen> {
           (route) => false,
         );
       }
-    } on TimeoutException {
-      _setError('Tiempo de espera agotado. Verifica tu conexi\u00f3n.');
     } catch (e) {
-      _setError(e.toString().replaceFirst('Exception: ', ''));
+      _setError(friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -203,6 +200,9 @@ class RegisterScreenState extends State<RegisterScreen> {
         if (value.trim().length < 2) {
           return 'Debe tener al menos 2 caracteres';
         }
+        if (value.trim().length > 50) {
+          return 'Máximo 50 caracteres';
+        }
         return null;
       },
     );
@@ -233,7 +233,9 @@ class RegisterScreenState extends State<RegisterScreen> {
       controller: _passwordController,
       obscureText: !_isPasswordVisible,
       decoration: InputDecoration(
-        labelText: 'Contrase\u00f1a',
+        labelText: 'Contraseña',
+        helperText:
+            'Mínimo 8 caracteres, con mayúscula, minúscula, número y símbolo',
         prefixIcon: const Icon(Icons.lock_rounded),
         suffixIcon: IconButton(
           icon: Icon(
@@ -243,16 +245,21 @@ class RegisterScreenState extends State<RegisterScreen> {
           onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
         ),
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Por favor ingresa una contrase\u00f1a';
-        }
-        if (value.length < 6) {
-          return 'Debe tener al menos 6 caracteres';
-        }
-        return null;
-      },
+      validator: _validateStrongPassword,
     );
+  }
+
+  static String? _validateStrongPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Por favor ingresa una contraseña';
+    }
+    final passwordRegex = RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
+    );
+    if (!passwordRegex.hasMatch(value)) {
+      return 'Mínimo 8 caracteres, mayúscula, minúscula, número y símbolo (@\$!%*?&)';
+    }
+    return null;
   }
 
   Widget _buildConfirmPasswordField() {

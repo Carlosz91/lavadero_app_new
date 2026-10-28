@@ -37,6 +37,32 @@ const errorHandler = (err, req, res, _next) => {
     return res.status(400).json({ error: 'ID inválido', code: 'INVALID_ID' });
   }
 
+  // JSON mal formado (express.json) o body demasiado grande. No son fallos
+  // internos: se responden como error del cliente y se registran como warning.
+  if (err.type === 'entity.parse.failed') {
+    logger.warn('JSON inválido en la solicitud', {
+      requestId: req.id,
+      path: req.path,
+      method: req.method,
+    });
+    return res.status(400).json({
+      error: 'El cuerpo de la solicitud no es un JSON válido',
+      code: 'INVALID_JSON',
+    });
+  }
+
+  if (err.type === 'entity.too.large') {
+    logger.warn('Solicitud demasiado grande', {
+      requestId: req.id,
+      path: req.path,
+      method: req.method,
+    });
+    return res.status(413).json({
+      error: 'La solicitud es demasiado grande',
+      code: 'PAYLOAD_TOO_LARGE',
+    });
+  }
+
   logger.error('Error no manejado', {
     requestId: req.id,
     error: err.message,

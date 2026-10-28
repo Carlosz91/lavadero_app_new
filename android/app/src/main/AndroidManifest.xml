@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Necesario para todas las llamadas a la API (login, registro, pagos).
+         Sin este permiso los builds release/profile fallan con
+         "Network is unreachable" / "Permission denied". -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="lavadero_app_new"
         android:name="${applicationName}"

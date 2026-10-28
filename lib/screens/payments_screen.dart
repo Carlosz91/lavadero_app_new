@@ -95,7 +95,7 @@ class _PaymentsViewState extends State<PaymentsView>
       setState(() {
         _isLoading = false;
         _hasError = true;
-        _errorMessage = 'Error al cargar pagos: $e';
+        _errorMessage = friendlyErrorMessage(e);
       });
     }
   }
@@ -147,7 +147,7 @@ class _PaymentsViewState extends State<PaymentsView>
       }
     } catch (e) {
       if (!mounted) return;
-      AppSnackBar.error(context, 'Error al conectar con Stripe: $e');
+      AppSnackBar.error(context, 'No se pudo iniciar el pago. ${friendlyErrorMessage(e)}');
     } finally {
       if (mounted) setState(() => _processingPayment = false);
     }

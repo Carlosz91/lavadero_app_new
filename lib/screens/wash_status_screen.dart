@@ -118,7 +118,7 @@ class _WashStatusViewState extends State<WashStatusView> {
       setState(() {
         _isLoading = false;
         _hasError = true;
-        _errorMessage = 'Error inesperado. Intenta de nuevo';
+        _errorMessage = friendlyErrorMessage(e);
       });
     }
   }

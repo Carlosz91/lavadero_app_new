@@ -51,7 +51,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() {
-          _errorMessage = 'Error inesperado. Intenta nuevamente.';
+          _errorMessage = friendlyErrorMessage(e);
           _isLoading = false;
         });
       }

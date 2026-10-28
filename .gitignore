@@ -54,3 +54,6 @@ e2e/node_modules/
 e2e/playwright-report/
 e2e/test-results/
 coverage/
+
+# CodeGraph (índice local de herramientas)
+.codegraph/
