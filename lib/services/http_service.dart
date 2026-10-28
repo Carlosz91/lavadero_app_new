@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/api_config.dart';
+import '../utils/app_error.dart';
 
 /// ✅ Servicio centralizado para requests HTTP.
 ///
@@ -123,9 +125,17 @@ class HttpService {
     } on UnauthorizedException {
       rethrow;
     } on TimeoutException {
-      throw HttpException('Tiempo de espera agotado. Verifica tu conexión');
-    } catch (e) {
-      throw HttpException('Error inesperado: $e');
+      throw NetworkException(AppErrorMessages.timeout);
+    } on http.ClientException catch (error) {
+      debugPrint('HttpService: fallo de red: $error');
+      throw NetworkException(AppErrorMessages.forNetworkDetail(error.message));
+    } catch (error) {
+      debugPrint('HttpService: error inesperado: $error');
+      final raw = error.toString();
+      if (AppErrorMessages.looksLikeNetworkError(raw)) {
+        throw NetworkException(AppErrorMessages.forNetworkDetail(raw));
+      }
+      throw HttpException(AppErrorMessages.unexpected);
     }
   }
 
@@ -200,50 +210,67 @@ class HttpService {
     }
   }
 
-  /// ✅ Manejo centralizado de respuestas
+  /// ✅ Manejo centralizado de respuestas.
+  ///
+  /// Los mensajes del backend se muestran solo en errores 4xx (son mensajes
+  /// funcionales). Para 5xx se usa un texto genérico para no exponer detalles
+  /// internos del servidor.
   Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
+    final status = response.statusCode;
+    final decoded = _decodeBody(response.body);
+    final serverMessage = AppErrorMessages.serverMessage(decoded);
+
+    if (status >= 200 && status < 300) {
+      return decoded;
+    }
+
+    switch (status) {
+      case 400:
+        throw HttpException(
+          serverMessage ?? 'Revisa los datos ingresados e inténtalo de nuevo.',
+        );
+
+      case 401:
+        await _handleSessionExpired();
+        throw UnauthorizedException(
+          serverMessage ?? 'Tu sesión expiró. Inicia sesión de nuevo.',
+        );
+
+      case 403:
+        throw HttpException(
+          serverMessage ?? 'No tienes permisos para realizar esta acción.',
+        );
+
+      case 404:
+        throw HttpException(serverMessage ?? 'No encontramos lo que buscabas.');
+
+      case 409:
+        throw HttpException(
+          serverMessage ??
+              'La operación no se pudo completar. Inténtalo de nuevo.',
+        );
+
+      case 429:
+        throw HttpException(serverMessage ?? AppErrorMessages.tooManyRequests);
+
+      default:
+        if (status >= 500) {
+          throw HttpException(AppErrorMessages.serverUnavailable);
+        }
+        throw HttpException(serverMessage ?? AppErrorMessages.unexpected);
+    }
+  }
+
+  /// Intenta decodificar el cuerpo como JSON. Si viene vacío, es HTML o texto
+  /// plano (por ejemplo un 502 del proxy), devuelve un mapa vacío.
+  Map<String, dynamic> _decodeBody(String body) {
+    if (body.trim().isEmpty) return const {};
+
     try {
-      final decoded = json.decode(response.body) as Map<String, dynamic>;
-
-      switch (response.statusCode) {
-        case 200:
-        case 201:
-          return decoded;
-
-        case 400:
-          throw HttpException(
-            decoded['error'] ?? 'Solicitud inválida',
-          );
-
-        case 401:
-          await _handleSessionExpired();
-          throw UnauthorizedException(
-            decoded['error'] ?? 'Sesión expirada',
-          );
-
-        case 403:
-          throw HttpException(
-            decoded['error'] ?? 'No tienes permisos para esta acción',
-          );
-
-        case 404:
-          throw HttpException(
-            decoded['error'] ?? 'Recurso no encontrado',
-          );
-
-        case 500:
-          throw HttpException(decoded['error'] ?? 'Error del servidor');
-
-        default:
-          throw HttpException(
-            'Error ${response.statusCode}: ${decoded['error'] ?? 'Desconocido'}',
-          );
-      }
-    } catch (e) {
-      if (e is HttpException || e is UnauthorizedException) {
-        rethrow;
-      }
-      throw HttpException('Error al procesar respuesta: $e');
+      final decoded = json.decode(body);
+      return decoded is Map<String, dynamic> ? decoded : const {};
+    } catch (_) {
+      return const {};
     }
   }
 
@@ -301,10 +328,35 @@ class HttpException implements Exception {
   String toString() => message;
 }
 
+/// Fallo de conectividad (sin red, DNS, timeout, servidor caído).
+/// Permite a las pantallas distinguirlo de un error funcional del backend.
+class NetworkException extends HttpException {
+  NetworkException(super.message);
+}
+
 class UnauthorizedException implements Exception {
   final String message;
   UnauthorizedException(this.message);
 
   @override
   String toString() => message;
+}
+
+/// Traduce cualquier error a un mensaje apto para el usuario final.
+///
+/// Úsalo en los `catch` genéricos de las pantallas para no filtrar nunca
+/// excepciones técnicas al cliente.
+String friendlyErrorMessage(Object error) {
+  if (error is HttpException) return error.message;
+  if (error is UnauthorizedException) return error.message;
+  if (error is TimeoutException) return AppErrorMessages.timeout;
+  if (error is http.ClientException) {
+    return AppErrorMessages.forNetworkDetail(error.message);
+  }
+
+  final raw = error.toString();
+  if (AppErrorMessages.looksLikeNetworkError(raw)) {
+    return AppErrorMessages.forNetworkDetail(raw);
+  }
+  return AppErrorMessages.unexpected;
 }

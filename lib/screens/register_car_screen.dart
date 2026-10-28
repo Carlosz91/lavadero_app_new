@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'dart:math';
 import 'package:intl/intl.dart';
 import '../config/api_config.dart';
@@ -172,10 +171,8 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vehículo registrado'), backgroundColor: AppColors.success));
       await Future.delayed(const Duration(seconds: 1));
       if (mounted) Navigator.pop(context);
-    } on TimeoutException {
-      _setError('Tiempo de espera agotado. Verifica tu conexión.');
     } catch (e) {
-      _setError(e.toString().replaceFirst('Exception: ', ''));
+      _setError(friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

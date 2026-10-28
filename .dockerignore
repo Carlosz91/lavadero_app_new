@@ -1,0 +1,18 @@
+# Contexto de build: no enviar artefactos grandes ni secretos a Docker.
+.git
+.gitignore
+build
+.dart_tool
+coverage
+
+# Dependencias locales
+**/node_modules
+e2e/test-results
+e2e/playwright-report
+
+# Variables de entorno reales (solo se versiona .env.example)
+**/.env
+
+# Artefactos móviles
+*.apk
+*.aab

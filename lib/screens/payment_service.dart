@@ -36,10 +36,8 @@ class PaymentService {
       }
 
       return [];
-    } on HttpException catch (e) {
-      throw Exception("Error al cargar pagos: ${e.message}");
     } catch (e) {
-      throw Exception("Error inesperado al cargar pagos: $e");
+      throw HttpException(friendlyErrorMessage(e));
     }
   }
 }

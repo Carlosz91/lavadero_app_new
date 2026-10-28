@@ -176,7 +176,7 @@ class _SettingsViewState extends State<SettingsView> {
                     } catch (e) {
                       navigator.pop();
                       messenger.showSnackBar(SnackBar(
-                        content: Text('Error: $e'.replaceFirst('Exception: ', '')),
+                        content: Text(friendlyErrorMessage(e)),
                         backgroundColor: AppColors.error,
                       ));
                     }

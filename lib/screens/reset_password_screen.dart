@@ -91,7 +91,7 @@ class ResetPasswordScreenState extends State<ResetPasswordScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Error inesperado. Intenta nuevamente.';
+        _errorMessage = friendlyErrorMessage(e);
         _isLoading = false;
       });
     }
