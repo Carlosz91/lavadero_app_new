@@ -4,9 +4,7 @@ const app = require('../server');
 
 describe('GET /health', () => {
   test('returns health status', async () => {
-    const res = await request(app)
-      .get('/health')
-      .expect(200);
+    const res = await request(app).get('/health').expect(200);
 
     expect(res.body).toHaveProperty('status');
     expect(res.body).toHaveProperty('message');
@@ -19,9 +17,7 @@ describe('GET /health', () => {
 
 describe('GET /api/routes-check', () => {
   test('is removed for security (returns 404)', async () => {
-    const res = await request(app)
-      .get('/api/routes-check')
-      .expect(404);
+    const res = await request(app).get('/api/routes-check').expect(404);
 
     expect(res.body.error).toBe('Ruta no encontrada');
   });
@@ -29,9 +25,7 @@ describe('GET /api/routes-check', () => {
 
 describe('GET /nonexistent', () => {
   test('returns 404 for unknown routes', async () => {
-    const res = await request(app)
-      .get('/nonexistent')
-      .expect(404);
+    const res = await request(app).get('/nonexistent').expect(404);
 
     expect(res.body.error).toBe('Ruta no encontrada');
   });

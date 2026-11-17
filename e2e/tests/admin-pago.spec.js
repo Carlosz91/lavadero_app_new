@@ -43,7 +43,7 @@ async function prepararPedidoCerrado({ page, request }) {
   await page.click('button:has-text("Ingresar")');
   await expect(page.locator('#app')).toHaveClass(/show/);
 
-  await page.click('#sidebar a[onclick="navigate(\'users\')"]');
+  await page.click('#sidebar a[data-arg="users"]');
   await page.fill('#userEmail', ADMIN_EMAIL);
   await page.click('button:has-text("Buscar")');
 
@@ -82,7 +82,7 @@ test.describe('Admin panel - Flujo de pago', () => {
     expect(pago.amount).toBe(MONTO_BASICO);
 
     // El panel muestra el Resumen de Pagos con la tarjeta de pendientes
-    await page.click('#sidebar a[onclick="navigate(\'reports\')"]');
+    await page.click('#sidebar a[data-arg="reports"]');
     await expect(page.locator('#reportStats .stat-card').filter({ has: page.locator('.label', { hasText: /^Pendiente de Cobro$/ }) })).toBeVisible();
     await page.screenshot({ path: 'screenshots/09-reportes-pendiente.png', fullPage: true });
   });
@@ -103,7 +103,7 @@ test.describe('Admin panel - Flujo de pago', () => {
     expect(pagado.method).toBe('Efectivo');
 
     // Reportes del panel refleja el ingreso cobrado
-    await page.click('#sidebar a[onclick="navigate(\'reports\')"]');
+    await page.click('#sidebar a[data-arg="reports"]');
     const cobrados = page.locator('#reportStats .stat-card').filter({ has: page.locator('.label', { hasText: /^Ingresos Cobrados$/ }) });
     await expect(cobrados).toBeVisible();
     await expect(cobrados).toContainText('Gs. ');
@@ -111,6 +111,9 @@ test.describe('Admin panel - Flujo de pago', () => {
   });
 
   test('paga un pedido con Stripe Checkout (modo test)', async ({ page, request }) => {
+    test.skip(process.env.SKIP_STRIPE_E2E === '1', 'Sin clave de Stripe de pruebas (SKIP_STRIPE_E2E=1)');
+    // Depende de la página alojada de Stripe (red externa): más margen que el global.
+    test.setTimeout(90000);
     const { placa, auth } = await prepararPedidoCerrado({ page, request });
     const pago = await obtenerPago(request, auth, placa);
 
@@ -126,21 +129,24 @@ test.describe('Admin panel - Flujo de pago', () => {
     // Ir al checkout de Stripe (test mode). El goto devuelve antes de que
     // cargue: esperamos el formulario de pago antes de capturar la pantalla.
     await page.goto(url);
-    await expect(page.locator('input[name="cardNumber"]')).toBeVisible();
+    // El formulario de Stripe vive en un iframe de Elements (los nombres de
+    // campo cambian entre versiones de su página alojada).
+    const stripeForm = page.frameLocator('iframe[src*="elements-inner"]').first();
+    await expect(stripeForm.locator('input[name="number"]')).toBeVisible({ timeout: 30000 });
     await page.waitForTimeout(1000);
     await page.screenshot({ path: 'screenshots/11-stripe-checkout.png', fullPage: true });
 
     // El checkout redirige al success handler apenas se completa el pago:
     // interceptamos esa peticion para capturar el session_id
-    const redirect = page.waitForRequest((r) => r.url().includes('/api/stripe/success'));
-    await page.fill('input[name="email"]', 'cliente@test.com');
-    await page.fill('input[name="cardNumber"]', '4242424242424242');
-    await page.fill('input[name="cardExpiry"]', '12/34');
-    await page.fill('input[name="cardCvc"]', '123');
-    await page.fill('input[name="billingName"]', 'Cliente Test');
+    const redirect = page.waitForRequest((r) => r.url().includes('/api/stripe/success'), { timeout: 45000 });
+    await stripeForm.locator('input[name="email"]').fill('cliente@test.com');
+    await stripeForm.locator('input[name="number"]').fill('4242424242424242');
+    await stripeForm.locator('input[name="expiry"]').fill('12/34');
+    await stripeForm.locator('input[name="cvc"]').fill('123');
+    await stripeForm.locator('input[name="name"]').fill('Cliente Test');
     await page.waitForTimeout(500);
-    await page.locator('form').first().screenshot({ path: 'screenshots/11b-stripe-checkout-datos.png' });
-    await page.getByTestId('hosted-payment-submit-button').click();
+    await page.screenshot({ path: 'screenshots/11b-stripe-checkout-datos.png', fullPage: true });
+    await stripeForm.getByTestId('payment-form-submit-button').click();
 
     const successReq = await redirect;
     const sessionId = new URL(successReq.url()).searchParams.get('session_id');

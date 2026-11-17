@@ -1,17 +1,15 @@
 const Car = require('../models/carModel');
 const User = require('../models/userModel');
-const Payment = require('../models/paymentModel');
-const logger = require('../utils/logger');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../utils/AppError');
-const { VALID_WASH_TYPES, getPriceForWashType } = require('../config/priceCatalog');
+const capacity = require('../services/capacityService');
+const carService = require('../services/carService');
 
-const VALID_STATUSES = ['Pendiente', 'En Progreso', 'Completado', 'Cancelado'];
-const VALID_TRANSITIONS = {
-  'Pendiente': ['En Progreso', 'Cancelado'],
-  'En Progreso': ['Completado', 'Cancelado'],
-  'Completado': [],
-  'Cancelado': [],
-};
+const summary = (car) => ({
+  _id: car._id,
+  plate: car.plate,
+  status: car.status,
+  updatedAt: car.updatedAt,
+});
 
 /**
  * @desc    Registra un vehículo para lavado. Verifica pagos pendientes, existencia del usuario y capacidad de agendamiento.
@@ -20,59 +18,8 @@ const VALID_TRANSITIONS = {
  */
 exports.registerCar = async (req, res, next) => {
   try {
-    const { plate, model, brand, color, washType, scheduledDate, scheduledTime } = req.body;
-    const userId = req.user.id;
-
-    const serverPrice = getPriceForWashType(washType);
-    if (serverPrice === null) {
-      throw new ValidationError('Tipo de lavado inválido');
-    }
-
-    const pendingPaymentCount = await Payment.countDocuments({ userId, status: 'Pendiente' });
-    if (pendingPaymentCount > 0) {
-      throw new ValidationError('Tenés un pago pendiente. Pagalo antes de registrar otro vehículo.');
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new NotFoundError('Usuario');
-    }
-
-    if (scheduledDate) {
-      const startOfDay = new Date(scheduledDate);
-      startOfDay.setUTCHours(0, 0, 0, 0);
-      const endOfDay = new Date(scheduledDate);
-      endOfDay.setUTCHours(23, 59, 59, 999);
-
-      const carsOnDate = await Car.countDocuments({
-        scheduledDate: { $gte: startOfDay, $lte: endOfDay },
-      });
-
-      if (carsOnDate >= 5) {
-        throw new ValidationError('Capacidad completa para esta fecha. Elige otro d\u00eda.');
-      }
-    }
-
-    const newCar = new Car({
-      plate: plate.trim().toUpperCase(),
-      model: model.trim(),
-      brand: brand.trim(),
-      color: color ? String(color).trim() : undefined,
-      washType,
-      amount: serverPrice,
-      scheduledDate: scheduledDate || undefined,
-      scheduledTime: scheduledTime || undefined,
-      userId,
-    });
-
-    await newCar.save();
-
-    logger.info('Vehículo registrado', { carId: newCar._id, userId, plate });
-
-    res.status(201).json({
-      message: 'Vehículo registrado exitosamente',
-      car: newCar,
-    });
+    const car = await carService.registerCar(req.user.id, req.body);
+    res.status(201).json({ message: 'Vehículo registrado exitosamente', car });
   } catch (err) {
     next(err);
   }
@@ -102,7 +49,9 @@ exports.getUserCarsStatus = async (req, res, next) => {
 
     const [cars, total] = await Promise.all([
       Car.find({ userId })
-        .select('plate model brand color washType amount status scheduledDate scheduledTime createdAt updatedAt')
+        .select(
+          'plate model brand color washType amount status scheduledDate scheduledTime createdAt updatedAt'
+        )
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -130,33 +79,11 @@ exports.getUserCarsStatus = async (req, res, next) => {
  */
 exports.updateCarStatus = async (req, res, next) => {
   try {
-    const { carId } = req.params;
     const { status } = req.body;
-
-    const car = await Car.findById(carId);
-    if (!car) {
-      throw new NotFoundError('Vehículo');
-    }
-
-    if (!VALID_TRANSITIONS[car.status].includes(status)) {
-      throw new ValidationError(
-        `Transición inválida: no se puede cambiar de "${car.status}" a "${status}"`
-      );
-    }
-
-    car.status = status;
-    await car.save();
-
-    logger.info('Estado de vehículo actualizado', { carId, from: car.status, to: status });
-
+    const car = await carService.changeStatus(req.params.carId, status);
     res.status(200).json({
       message: `Estado actualizado a "${status}"`,
-      car: {
-        _id: car._id,
-        plate: car.plate,
-        status: car.status,
-        updatedAt: car.updatedAt,
-      },
+      car: summary(car),
     });
   } catch (err) {
     next(err);
@@ -170,44 +97,10 @@ exports.updateCarStatus = async (req, res, next) => {
  */
 exports.closeCarStatus = async (req, res, next) => {
   try {
-    const { carId } = req.params;
-
-    const car = await Car.findById(carId);
-    if (!car) {
-      throw new NotFoundError('Vehículo');
-    }
-
-    if (car.status !== 'En Progreso') {
-      throw new ValidationError(
-        `No se puede cerrar un vehículo con estado "${car.status}". Solo vehículos "En Progreso".`
-      );
-    }
-
-    const payment = await Payment.create({
-      userId: car.userId,
-      plate: car.plate,
-      method: 'Otro',
-      amount: car.amount || 0,
-      status: 'Pendiente',
-      carId: car._id,
-    });
-
-    car.status = 'Completado';
-    await car.save().catch(async (err) => {
-      await Payment.findByIdAndDelete(payment._id);
-      throw err;
-    });
-
-    logger.info('Vehículo cerrado como completado', { carId, plate: car.plate, paymentId: payment._id });
-
+    const { car } = await carService.closeCar(req.params.carId);
     res.status(200).json({
       message: 'Vehículo marcado como Completado',
-      car: {
-        _id: car._id,
-        plate: car.plate,
-        status: car.status,
-        updatedAt: car.updatedAt,
-      },
+      car: summary(car),
     });
   } catch (err) {
     next(err);
@@ -250,7 +143,7 @@ exports.getCarsStats = async (req, res, next) => {
       Cancelado: { count: 0, totalAmount: 0 },
     };
 
-    stats.forEach(stat => {
+    stats.forEach((stat) => {
       formattedStats[stat._id] = {
         count: stat.count,
         totalAmount: stat.totalAmount,
@@ -278,20 +171,17 @@ exports.checkAvailability = async (req, res, next) => {
       throw new ValidationError('Fecha es requerida (YYYY-MM-DD)');
     }
 
-    const startOfDay = new Date(date);
-    startOfDay.setUTCHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setUTCHours(23, 59, 59, 999);
-
-    const count = await Car.countDocuments({
-      scheduledDate: { $gte: startOfDay, $lte: endOfDay },
-    });
+    const key = capacity.dayKey(date);
+    if (!key) {
+      throw new ValidationError('Fecha inválida (YYYY-MM-DD)');
+    }
+    const count = await capacity.getBooked(key);
 
     res.status(200).json({
       date,
       booked: count,
-      available: Math.max(0, 5 - count),
-      maxPerDay: 5,
+      available: Math.max(0, capacity.MAX_PER_DAY - count),
+      maxPerDay: capacity.MAX_PER_DAY,
     });
   } catch (err) {
     next(err);

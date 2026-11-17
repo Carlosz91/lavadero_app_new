@@ -50,7 +50,7 @@ test.describe('Admin panel - Flujo completo de un lavado', () => {
     await expect(page.locator('#app')).toHaveClass(/show/);
 
     // 3) Ir a Usuarios y buscar al admin
-    await page.click('#sidebar a[onclick="navigate(\'users\')"]');
+    await page.click('#sidebar a[data-arg="users"]');
     await page.fill('#userEmail', ADMIN_EMAIL);
     await page.click('button:has-text("Buscar")');
 

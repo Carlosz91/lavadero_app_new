@@ -17,9 +17,7 @@ const createCar = async (token, plate) =>
     .send({ plate, brand: 'Honda', model: 'Civic', washType: 'Básico' });
 
 const closeCar = async (token, carId) =>
-  request(app)
-    .put(`/api/cars/close-car/${carId}`)
-    .set('Authorization', `Bearer ${token}`);
+  request(app).put(`/api/cars/close-car/${carId}`).set('Authorization', `Bearer ${token}`);
 
 const startCar = async (token, carId) =>
   request(app)
@@ -207,9 +205,6 @@ describe('PUT /api/payments/:id', () => {
   });
 
   test('rejects without auth', async () => {
-    await request(app)
-      .put(`/api/payments/${paymentId}`)
-      .send({ status: 'Pagado' })
-      .expect(401);
+    await request(app).put(`/api/payments/${paymentId}`).send({ status: 'Pagado' }).expect(401);
   });
 });

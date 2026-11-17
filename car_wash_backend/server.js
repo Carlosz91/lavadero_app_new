@@ -10,6 +10,12 @@ const requestId = require('./utils/requestId');
 const sanitizeInput = require('./middlewares/sanitize');
 const { globalLimiter } = require('./middlewares/rateLimitMiddleware');
 const errorHandler = require('./middlewares/errorHandler');
+const { assertEnv } = require('./config/env');
+const monitoring = require('./utils/monitoring');
+
+// Falla rápido si la configuración es inválida (antes de cargar rutas/controladores).
+assertEnv(process.env, logger);
+monitoring.init();
 
 const app = express();
 app.set('trust proxy', 1);
@@ -26,36 +32,50 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:5099',
 ];
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  ? process.env.ALLOWED_ORIGINS.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean)
   : DEFAULT_ALLOWED_ORIGINS;
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: false,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-}));
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: false,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  })
+);
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-      imgSrc: ["'self'", "data:"],
-      connectSrc: ["'self'", "http://localhost:5000", "https://lavaderoappnew-production.up.railway.app", "https://lavaderoappnew-development.up.railway.app"],
-      fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-      objectSrc: ["'none'"],
-      frameAncestors: ["'none'"],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // Sin 'unsafe-inline': un <script> o handler inyectado (XSS) no se ejecuta.
+        scriptSrc: ["'self'"],
+        scriptSrcAttr: ["'none'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: [
+          "'self'",
+          'http://localhost:5000',
+          'https://lavaderoappnew-production.up.railway.app',
+          'https://lavaderoappnew-development.up.railway.app',
+        ],
+        fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
     },
-  },
-  crossOriginEmbedderPolicy: false,
-}));
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 app.use((req, res, next) => {
   if (req.path === '/api/stripe/webhook') {
     let data = '';
-    req.on('data', chunk => { data += chunk; });
+    req.on('data', (chunk) => {
+      data += chunk;
+    });
     req.on('end', () => {
       req.rawBody = data;
       next();
@@ -118,22 +138,78 @@ if (process.env.NODE_ENV !== 'test') {
     process.exit(1);
   }
 
-  mongoose.connect(mongoUri, {
-    maxPoolSize: 10,
-    minPoolSize: 5,
-    serverSelectionTimeoutMS: 5000,
-  })
-  .then(() => {
-    logger.info('MongoDB conectado');
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-      logger.info(`Servidor corriendo en puerto ${PORT}`);
-      logger.info(`Swagger: http://localhost:${PORT}/api/docs`);
+  mongoose
+    .connect(mongoUri, {
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      serverSelectionTimeoutMS: 5000,
+    })
+    .then(() => {
+      logger.info('MongoDB conectado');
+      // Reemplaza el viejo índice único global de Idempotency.key por {userId, key}.
+      return require('./models/idempotencyModel')
+        .syncIndexes()
+        .catch((err) =>
+          logger.warn('No se pudieron sincronizar índices de Idempotency', { error: err.message })
+        );
+    })
+    .then(() => {
+      const PORT = process.env.PORT || 5000;
+      const server = app.listen(PORT, () => {
+        logger.info(`Servidor corriendo en puerto ${PORT}`);
+        logger.info(`Swagger: http://localhost:${PORT}/api/docs`);
+      });
+
+      // Conciliación periódica de pagos Stripe cuyo webhook no llegó.
+      const stopReconciler = require('./services/paymentReconciler').startReconciler(
+        require('./controllers/stripeController').getStripe
+      );
+
+      // Timeouts razonables contra conexiones lentas (slowloris).
+      server.requestTimeout = 30000;
+      server.headersTimeout = 35000;
+      server.keepAliveTimeout = 65000; // > timeout típico de los balanceadores (60s)
+
+      // Cierre ordenado: deja de aceptar conexiones, termina las en curso y cierra Mongo.
+      let shuttingDown = false;
+      const shutdown = (signal) => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        logger.info(`${signal} recibido: cerrando servidor`);
+        const force = setTimeout(() => {
+          logger.error('Cierre forzado por timeout');
+          process.exit(1);
+        }, 10000);
+        force.unref();
+        stopReconciler();
+        server.close(async () => {
+          try {
+            await monitoring.flush();
+            await mongoose.connection.close();
+          } finally {
+            process.exit(0);
+          }
+        });
+      };
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
+    })
+    .catch((err) => {
+      logger.error('Error conectando a MongoDB', { error: err.message });
+      process.exit(1);
     });
-  })
-  .catch(err => {
-    logger.error('Error conectando a MongoDB', { error: err.message });
-    process.exit(1);
+}
+
+if (process.env.NODE_ENV !== 'test') {
+  process.on('unhandledRejection', (reason) => {
+    logger.error('unhandledRejection', {
+      reason: reason && reason.message ? reason.message : String(reason),
+    });
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error('uncaughtException', { error: err.message, stack: err.stack });
+    monitoring.captureException(err, { type: 'uncaughtException' });
+    monitoring.flush().finally(() => process.exit(1)); // estado indefinido: el orquestador reinicia el contenedor
   });
 }
 

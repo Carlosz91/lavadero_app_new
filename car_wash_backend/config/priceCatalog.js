@@ -1,9 +1,9 @@
 const WASH_TYPE_PRICES = {
   'B\u00e1sico': 50000,
-  'Premium': 80000,
+  Premium: 80000,
   'Premium Plus': 100000,
-  'Completo': 120000,
-  'Detailing': 200000,
+  Completo: 120000,
+  Detailing: 200000,
   'Full Package': 300000,
 };
 

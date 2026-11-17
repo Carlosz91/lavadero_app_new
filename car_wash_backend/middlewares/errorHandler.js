@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/AppError');
+const monitoring = require('../utils/monitoring');
 
 const errorHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {
@@ -19,7 +20,7 @@ const errorHandler = (err, req, res, _next) => {
   }
 
   if (err.name === 'ValidationError' && err.errors) {
-    const details = Object.values(err.errors).map(e => ({
+    const details = Object.values(err.errors).map((e) => ({
       field: e.path,
       message: e.message,
     }));
@@ -71,9 +72,10 @@ const errorHandler = (err, req, res, _next) => {
     method: req.method,
   });
 
-  const message = process.env.NODE_ENV === 'production'
-    ? 'Error interno del servidor'
-    : err.message;
+  monitoring.captureException(err, { requestId: req.id, path: req.path, method: req.method });
+
+  const message =
+    process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : err.message;
 
   res.status(err.status || 500).json({
     error: message,

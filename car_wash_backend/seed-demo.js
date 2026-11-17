@@ -14,16 +14,86 @@ const users = [
 ];
 
 const cars = [
-  { plate: 'ABC-123', model: 'Corolla', brand: 'Toyota', washType: 'Completo', amount: 80000, status: 'Completado' },
-  { plate: 'XYZ-789', model: 'Civic', brand: 'Honda', washType: 'Premium', amount: 120000, status: 'En Progreso' },
-  { plate: 'DEF-456', model: 'Onix', brand: 'Chevrolet', washType: 'Básico', amount: 40000, status: 'Pendiente' },
-  { plate: 'GHI-789', model: 'Focus', brand: 'Ford', washType: 'Completo', amount: 75000, status: 'Completado' },
-  { plate: 'JKL-012', model: 'March', brand: 'Nissan', washType: 'Básico', amount: 35000, status: 'Pendiente' },
-  { plate: 'MNO-345', model: 'Tucson', brand: 'Hyundai', washType: 'Detailing', amount: 200000, status: 'Completado' },
-  { plate: 'PQR-678', model: 'CX-5', brand: 'Mazda', washType: 'Premium', amount: 130000, status: 'En Progreso' },
-  { plate: 'STU-901', model: 'Kicks', brand: 'Nissan', washType: 'Completo', amount: 85000, status: 'Pendiente' },
-  { plate: 'VWX-234', model: 'Hilux', brand: 'Toyota', washType: 'Premium', amount: 150000, status: 'Completado' },
-  { plate: 'YZA-567', model: 'X1', brand: 'BMW', washType: 'Detailing', amount: 250000, status: 'Completado' },
+  {
+    plate: 'ABC-123',
+    model: 'Corolla',
+    brand: 'Toyota',
+    washType: 'Completo',
+    amount: 80000,
+    status: 'Completado',
+  },
+  {
+    plate: 'XYZ-789',
+    model: 'Civic',
+    brand: 'Honda',
+    washType: 'Premium',
+    amount: 120000,
+    status: 'En Progreso',
+  },
+  {
+    plate: 'DEF-456',
+    model: 'Onix',
+    brand: 'Chevrolet',
+    washType: 'Básico',
+    amount: 40000,
+    status: 'Pendiente',
+  },
+  {
+    plate: 'GHI-789',
+    model: 'Focus',
+    brand: 'Ford',
+    washType: 'Completo',
+    amount: 75000,
+    status: 'Completado',
+  },
+  {
+    plate: 'JKL-012',
+    model: 'March',
+    brand: 'Nissan',
+    washType: 'Básico',
+    amount: 35000,
+    status: 'Pendiente',
+  },
+  {
+    plate: 'MNO-345',
+    model: 'Tucson',
+    brand: 'Hyundai',
+    washType: 'Detailing',
+    amount: 200000,
+    status: 'Completado',
+  },
+  {
+    plate: 'PQR-678',
+    model: 'CX-5',
+    brand: 'Mazda',
+    washType: 'Premium',
+    amount: 130000,
+    status: 'En Progreso',
+  },
+  {
+    plate: 'STU-901',
+    model: 'Kicks',
+    brand: 'Nissan',
+    washType: 'Completo',
+    amount: 85000,
+    status: 'Pendiente',
+  },
+  {
+    plate: 'VWX-234',
+    model: 'Hilux',
+    brand: 'Toyota',
+    washType: 'Premium',
+    amount: 150000,
+    status: 'Completado',
+  },
+  {
+    plate: 'YZA-567',
+    model: 'X1',
+    brand: 'BMW',
+    washType: 'Detailing',
+    amount: 250000,
+    status: 'Completado',
+  },
 ];
 
 const methods = ['Efectivo', 'Tarjeta', 'Transferencia', 'Mercado Pago'];
@@ -86,7 +156,7 @@ async function seed() {
   await mongoose.disconnect();
 }
 
-seed().catch(err => {
+seed().catch((err) => {
   console.error('Error:', err);
   process.exit(1);
 });

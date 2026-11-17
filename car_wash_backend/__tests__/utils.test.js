@@ -1,5 +1,11 @@
 require('./helpers/setup');
-const { AppError, NotFoundError, ValidationError, UnauthorizedError, ForbiddenError } = require('../utils/AppError');
+const {
+  AppError,
+  NotFoundError,
+  ValidationError,
+  UnauthorizedError,
+  ForbiddenError,
+} = require('../utils/AppError');
 
 describe('AppError', () => {
   test('creates error with correct status and code', () => {

@@ -83,7 +83,12 @@ const idempotencyMiddleware = require('../middlewares/idempotencyMiddleware');
  *         description: Firma inválida
  */
 
-router.post('/create-checkout-session', verifyToken, idempotencyMiddleware, stripeController.createCheckoutSession);
+router.post(
+  '/create-checkout-session',
+  verifyToken,
+  idempotencyMiddleware,
+  stripeController.createCheckoutSession
+);
 router.get('/success', stripeController.success);
 router.get('/cancel', stripeController.cancel);
 router.post('/webhook', stripeController.webhook);

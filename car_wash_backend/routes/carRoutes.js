@@ -243,11 +243,7 @@ router.get(
  *       400:
  *         description: Fecha inválida
  */
-router.get(
-  '/availability',
-  verifyToken,
-  carController.checkAvailability
-);
+router.get('/availability', verifyToken, carController.checkAvailability);
 
 /**
  * @swagger

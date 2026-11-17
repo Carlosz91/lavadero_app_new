@@ -17,14 +17,16 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.Console({
-      format: process.env.NODE_ENV === 'production'
-        ? winston.format.json()
-        : winston.format.combine(winston.format.colorize(), winston.format.printf(
-            ({ timestamp, level, message, stack, ...meta }) => {
-              const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
-              return `${timestamp} [${level}] ${message}${metaStr}${stack ? '\n' + stack : ''}`;
-            }
-          ))
+      format:
+        process.env.NODE_ENV === 'production'
+          ? winston.format.json()
+          : winston.format.combine(
+              winston.format.colorize(),
+              winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
+                const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+                return `${timestamp} [${level}] ${message}${metaStr}${stack ? '\n' + stack : ''}`;
+              })
+            ),
     }),
     new winston.transports.File({
       filename: path.join(logDir, 'error.log'),

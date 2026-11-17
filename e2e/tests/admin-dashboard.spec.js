@@ -12,13 +12,13 @@ test.describe('Admin panel - Dashboard', () => {
 
   test('carga las tarjetas de estadísticas', async ({ page }) => {
     await expect(page.locator('.stat-card').first()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('.stat-card .label', { hasText: 'Total Vehículos' })).toBeVisible();
+    await expect(page.locator('.stat-card .label', { hasText: 'Autos Hoy' })).toBeVisible();
     await page.screenshot({ path: 'screenshots/04-dashboard.png', fullPage: true });
   });
 
   test('muestra la tabla de actividad reciente', async ({ page }) => {
     await expect(page.locator('#recentTable')).toBeVisible();
-    await expect(page.locator('th', { hasText: 'Cliente' })).toBeVisible();
+    await expect(page.locator('#page-dashboard th', { hasText: 'Cliente' })).toBeVisible();
     await page.screenshot({ path: 'screenshots/05-actividad-reciente.png', fullPage: true });
   });
 });

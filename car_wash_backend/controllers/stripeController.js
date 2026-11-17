@@ -11,13 +11,19 @@ const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 let stripeClient = null;
 const getStripe = () => {
   if (!process.env.STRIPE_SECRET_KEY) {
-    throw new AppError('Stripe no está configurado en el servidor (STRIPE_SECRET_KEY)', 500, 'SERVER_CONFIG');
+    throw new AppError(
+      'Stripe no está configurado en el servidor (STRIPE_SECRET_KEY)',
+      500,
+      'SERVER_CONFIG'
+    );
   }
   if (!stripeClient) {
     stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY);
   }
   return stripeClient;
 };
+
+exports.getStripe = getStripe;
 
 /**
  * @desc    Crea sesión de pago Stripe. Requiere un paymentId existente (creado por el sistema o admin); el monto siempre proviene del pago, nunca del cliente.
@@ -30,7 +36,9 @@ exports.createCheckoutSession = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!paymentId) {
-      throw new ValidationError('paymentId es requerido: el pago debe existir antes de iniciar el checkout');
+      throw new ValidationError(
+        'paymentId es requerido: el pago debe existir antes de iniciar el checkout'
+      );
     }
 
     const payment = await Payment.findById(paymentId);
@@ -55,7 +63,10 @@ exports.createCheckoutSession = async (req, res, next) => {
       try {
         existing = await getStripe().checkout.sessions.retrieve(payment.checkoutSessionId);
       } catch (err) {
-        logger.warn('No se pudo reutilizar el checkout anterior, se creará uno nuevo', { paymentId: payment._id, error: err.message });
+        logger.warn('No se pudo reutilizar el checkout anterior, se creará uno nuevo', {
+          paymentId: payment._id,
+          error: err.message,
+        });
       }
       if (existing?.payment_status === 'paid') {
         // El cobro ya se concretó pero aún no se marcó (webhook/success pendientes):
@@ -67,8 +78,13 @@ exports.createCheckoutSession = async (req, res, next) => {
         throw new ValidationError('Este pago ya fue procesado');
       }
       if (existing?.status === 'open') {
-        logger.info('Checkout Stripe: reutilizando sesión abierta', { paymentId: payment._id, sessionId: existing.id });
-        return res.status(200).json({ paymentId: payment._id, url: existing.url, sessionId: existing.id });
+        logger.info('Checkout Stripe: reutilizando sesión abierta', {
+          paymentId: payment._id,
+          sessionId: existing.id,
+        });
+        return res
+          .status(200)
+          .json({ paymentId: payment._id, url: existing.url, sessionId: existing.id });
       }
     }
 
@@ -98,7 +114,11 @@ exports.createCheckoutSession = async (req, res, next) => {
     // Recordar la sesión activa: el reintento la reutiliza o detecta el cobro.
     await Payment.findByIdAndUpdate(payment._id, { checkoutSessionId: session.id });
 
-    logger.info('Checkout Stripe creado', { paymentId: payment._id, sessionId: session.id, amount: finalAmount });
+    logger.info('Checkout Stripe creado', {
+      paymentId: payment._id,
+      sessionId: session.id,
+      amount: finalAmount,
+    });
 
     res.status(201).json({
       paymentId: payment._id,
@@ -123,20 +143,30 @@ exports.success = async (req, res) => {
     try {
       const session = await getStripe().checkout.sessions.retrieve(session_id);
       const paymentId = session.metadata?.paymentId;
-      if (paymentId) {
+      // Solo se confirma si Stripe realmente cobró: sin esta verificación, abrir
+      // /success con el session_id de un checkout sin pagar marcaría el pago como Pagado.
+      if (paymentId && session.payment_status === 'paid') {
         const payment = await Payment.findById(paymentId);
         if (payment && payment.status === 'Pendiente') {
           payment.status = 'Pagado';
           payment.method = 'Stripe';
           await payment.save();
-          logger.info('Pago Stripe confirmado desde success page', { paymentId, sessionId: session_id });
+          logger.info('Pago Stripe confirmado desde success page', {
+            paymentId,
+            sessionId: session_id,
+          });
         }
       }
     } catch (err) {
-      logger.error('Error al confirmar pago desde success page', { error: err.message, sessionId: session_id });
+      logger.error('Error al confirmar pago desde success page', {
+        error: err.message,
+        sessionId: session_id,
+      });
     }
   }
-  res.send(`<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f0fdf4;"><div style="text-align:center;"><h1 style="color:#16a34a;">\u2705 Pago exitoso</h1><p>Gracias por tu pago. Ya puedes cerrar esta ventana.</p></div></body></html>`);
+  res.send(
+    `<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f0fdf4;"><div style="text-align:center;"><h1 style="color:#16a34a;">\u2705 Pago exitoso</h1><p>Gracias por tu pago. Ya puedes cerrar esta ventana.</p></div></body></html>`
+  );
 };
 
 /**
@@ -146,7 +176,9 @@ exports.success = async (req, res) => {
  */
 exports.cancel = async (req, res) => {
   logger.warn('Pago Stripe cancelado');
-  res.send(`<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#fef2f2;"><div style="text-align:center;"><h1 style="color:#dc2626;">\u274c Pago cancelado</h1><p>El pago no se complet\u00f3. Intenta de nuevo.</p></div></body></html>`);
+  res.send(
+    `<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#fef2f2;"><div style="text-align:center;"><h1 style="color:#dc2626;">\u274c Pago cancelado</h1><p>El pago no se complet\u00f3. Intenta de nuevo.</p></div></body></html>`
+  );
 };
 
 /**
@@ -161,7 +193,9 @@ exports.webhook = async (req, res) => {
   let event;
   try {
     if (!process.env.STRIPE_SECRET_KEY || !WEBHOOK_SECRET) {
-      logger.error('Webhook de Stripe llamado sin STRIPE_SECRET_KEY o STRIPE_WEBHOOK_SECRET configurados');
+      logger.error(
+        'Webhook de Stripe llamado sin STRIPE_SECRET_KEY o STRIPE_WEBHOOK_SECRET configurados'
+      );
       return res.status(503).send('Webhook no configurado en el servidor');
     }
     event = getStripe().webhooks.constructEvent(payload, sig, WEBHOOK_SECRET);
@@ -173,9 +207,20 @@ exports.webhook = async (req, res) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const paymentId = session.metadata?.paymentId;
-    if (paymentId) {
-      await Payment.findByIdAndUpdate(paymentId, { status: 'Pagado', method: 'Stripe' });
-      logger.info('Webhook: pago Stripe confirmado', { paymentId, sessionId: session.id });
+    if (paymentId && session.payment_status === 'paid') {
+      // Idempotente: Stripe reintenta webhooks; solo un pago Pendiente pasa a Pagado.
+      const updated = await Payment.findOneAndUpdate(
+        { _id: paymentId, status: 'Pendiente' },
+        { status: 'Pagado', method: 'Stripe' }
+      );
+      if (updated) {
+        logger.info('Webhook: pago Stripe confirmado', { paymentId, sessionId: session.id });
+      } else {
+        logger.info('Webhook: pago ya procesado o inexistente, se ignora', {
+          paymentId,
+          sessionId: session.id,
+        });
+      }
     }
   }
 

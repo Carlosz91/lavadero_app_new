@@ -13,8 +13,14 @@ const options = {
     },
     servers: [
       { url: 'http://localhost:5000', description: 'Desarrollo local' },
-      { url: 'https://lavaderoappnew-development.up.railway.app', description: 'Development (Railway)' },
-      { url: 'https://lavaderoappnew-production.up.railway.app', description: 'Producción (Railway)' },
+      {
+        url: 'https://lavaderoappnew-development.up.railway.app',
+        description: 'Development (Railway)',
+      },
+      {
+        url: 'https://lavaderoappnew-production.up.railway.app',
+        description: 'Producción (Railway)',
+      },
     ],
     components: {
       securitySchemes: {
@@ -50,9 +56,15 @@ const options = {
             plate: { type: 'string', example: 'ABC-1234' },
             model: { type: 'string', example: 'Corolla' },
             brand: { type: 'string', example: 'Toyota' },
-            washType: { type: 'string', enum: ['Básico', 'Premium', 'Premium Plus', 'Completo', 'Detailing', 'Full Package'] },
-            amount: { type: 'number', example: 150.00 },
-            status: { type: 'string', enum: ['Pendiente', 'En Progreso', 'Completado', 'Cancelado'] },
+            washType: {
+              type: 'string',
+              enum: ['Básico', 'Premium', 'Premium Plus', 'Completo', 'Detailing', 'Full Package'],
+            },
+            amount: { type: 'number', example: 150.0 },
+            status: {
+              type: 'string',
+              enum: ['Pendiente', 'En Progreso', 'Completado', 'Cancelado'],
+            },
             userId: { type: 'string' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
@@ -64,8 +76,11 @@ const options = {
             _id: { type: 'string' },
             userId: { type: 'string' },
             plate: { type: 'string', example: 'ABC-1234' },
-            method: { type: 'string', enum: ['Efectivo', 'Tarjeta', 'Transferencia', 'Mercado Pago', 'Stripe', 'Otro'] },
-            amount: { type: 'number', example: 150.00 },
+            method: {
+              type: 'string',
+              enum: ['Efectivo', 'Tarjeta', 'Transferencia', 'Mercado Pago', 'Stripe', 'Otro'],
+            },
+            amount: { type: 'number', example: 150.0 },
             status: { type: 'string', enum: ['Pendiente', 'Pagado', 'Cancelado', 'Reembolsado'] },
             date: { type: 'string', format: 'date-time' },
             carId: { type: 'string', nullable: true },

@@ -3,14 +3,18 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 // ✅ Importar middleware de validación
 const {
-  validateRegister, 
-  validateLogin, 
+  validateRegister,
+  validateLogin,
   validateForgotPassword,
   validateResetPassword,
-  handleValidationErrors 
+  handleValidationErrors,
 } = require('../middlewares/validationMiddleware');
 // ✅ Importar rate limiter
-const { authLimiter, registerLimiter, passwordResetLimiter } = require('../middlewares/rateLimitMiddleware');
+const {
+  authLimiter,
+  registerLimiter,
+  passwordResetLimiter,
+} = require('../middlewares/rateLimitMiddleware');
 // ✅ Importar token verification
 const verifyToken = require('../middlewares/verifyToken');
 
@@ -211,6 +215,31 @@ router.post('/google', authController.googleLogin);
  *         description: Refresh token inválido o expirado
  */
 router.post('/refresh', authController.refreshToken);
+
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Cerrar sesión (revoca el refresh token)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *               all:
+ *                 type: boolean
+ *                 description: true cierra la sesión en todos los dispositivos
+ *     responses:
+ *       200:
+ *         description: Sesión cerrada
+ */
+router.post('/logout', verifyToken, authController.logout);
 
 /**
  * @swagger

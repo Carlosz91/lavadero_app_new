@@ -1,7 +1,6 @@
 const User = require('../models/userModel');
 const Car = require('../models/carModel');
 const Payment = require('../models/paymentModel');
-const logger = require('../utils/logger');
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -9,7 +8,8 @@ const MAX_RANGE_DAYS = 366;
 const MOVEMENTS_LIMIT = 300;
 
 // Zona horaria local del servidor para agrupar por d�a (full ICU en Node moderno).
-const LOCAL_TZ = Intl && Intl.DateTimeFormat ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : 'UTC';
+const LOCAL_TZ =
+  Intl && Intl.DateTimeFormat ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' : 'UTC';
 
 const startOfToday = () => {
   const d = new Date();
@@ -47,19 +47,27 @@ exports.getDashboard = async (req, res, next) => {
       Car.countDocuments({ createdAt: { $gte: hoy } }),
       Car.countDocuments({ status: 'Completado', updatedAt: { $gte: hoy } }),
       Payment.countDocuments(),
-      Payment.aggregate([{ $group: { _id: '$status', count: { $sum: 1 }, total: { $sum: '$amount' } } }]),
+      Payment.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 }, total: { $sum: '$amount' } } },
+      ]),
       Payment.aggregate([
         { $match: { status: 'Pagado', updatedAt: { $gte: hoy } } },
         { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$amount' } } },
       ]),
-      Car.find().sort({ createdAt: -1 }).limit(5).select('plate brand model status amount createdAt userId').populate('userId', 'email'),
+      Car.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('plate brand model status amount createdAt userId')
+        .populate('userId', 'email'),
     ]);
 
     const statusMap = { Pendiente: 0, 'En Progreso': 0, Completado: 0, Cancelado: 0 };
-    carsByStatus.forEach(s => { statusMap[s._id] = s.count; });
+    carsByStatus.forEach((s) => {
+      statusMap[s._id] = s.count;
+    });
 
     const paymentMap = { Pendiente: { count: 0, total: 0 }, Pagado: { count: 0, total: 0 } };
-    paymentsByStatus.forEach(s => {
+    paymentsByStatus.forEach((s) => {
       if (paymentMap[s._id]) paymentMap[s._id] = { count: s.count, total: s.total };
     });
 
@@ -171,7 +179,9 @@ exports.getReports = async (req, res, next) => {
     ]);
 
     const carsMap = { Pendiente: 0, 'En Progreso': 0, Completado: 0, Cancelado: 0 };
-    carsByStatusRange.forEach(s => { carsMap[s._id] = s.count; });
+    carsByStatusRange.forEach((s) => {
+      carsMap[s._id] = s.count;
+    });
 
     const payMap = {
       Pendiente: { count: 0, total: 0 },
@@ -179,14 +189,16 @@ exports.getReports = async (req, res, next) => {
       Cancelado: { count: 0, total: 0 },
       Reembolsado: { count: 0, total: 0 },
     };
-    paymentsByStatusRange.forEach(s => {
+    paymentsByStatusRange.forEach((s) => {
       if (payMap[s._id]) payMap[s._id] = { count: s.count, total: s.total };
     });
 
     // Merge de las dos series diarias, ordenadas por fecha.
     const byDay = {};
-    dailyCars.forEach(d => { byDay[d._id] = { day: d._id, cars: d.cars, collected: 0, payments: 0 }; });
-    dailyPaid.forEach(d => {
+    dailyCars.forEach((d) => {
+      byDay[d._id] = { day: d._id, cars: d.cars, collected: 0, payments: 0 };
+    });
+    dailyPaid.forEach((d) => {
       if (!byDay[d._id]) byDay[d._id] = { day: d._id, cars: 0, collected: 0, payments: 0 };
       byDay[d._id].collected = d.collected;
       byDay[d._id].payments = d.payments;
@@ -213,7 +225,7 @@ exports.getReports = async (req, res, next) => {
 exports.searchUsers = async (req, res, next) => {
   try {
     const { email } = req.query;
-    if (!email) {
+    if (!email || typeof email !== 'string') {
       return res.status(400).json({ error: 'Email es requerido' });
     }
     const user = await User.findOne({ email: email.toLowerCase() }).select('_id email name role');
