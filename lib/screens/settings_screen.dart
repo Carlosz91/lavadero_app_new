@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../config/api_config.dart';
+import '../repositories/auth_repository.dart';
 import '../services/http_service.dart';
 import '../services/theme_service.dart';
 import '../services/app_lock_service.dart';
@@ -148,10 +148,7 @@ class _SettingsViewState extends State<SettingsView> {
                       ));
                       return;
                     }
-                    final passwordRegex = RegExp(
-                      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
-                    );
-                    if (!passwordRegex.hasMatch(newPassword)) {
+                    if (!AuthRepository.isValidPassword(newPassword)) {
                       messenger.showSnackBar(const SnackBar(
                         content: Text('La contraseña no cumple la política requerida'),
                         backgroundColor: AppColors.error,
@@ -160,14 +157,7 @@ class _SettingsViewState extends State<SettingsView> {
                     }
 
                     try {
-                      await _httpService.loadToken();
-                      await _httpService.put(
-                        ApiConfig.authChangePasswordUrl,
-                        {
-                          'currentPassword': current,
-                          'newPassword': newPassword,
-                        },
-                      );
+                      await AuthRepository(_httpService).changePassword(current, newPassword);
                       navigator.pop();
                       messenger.showSnackBar(const SnackBar(
                         content: Text('Contraseña actualizada exitosamente'),
@@ -227,9 +217,9 @@ class _SettingsViewState extends State<SettingsView> {
   /// Logout completo: memoria + secure storage + preferencias locales.
   Future<void> _logout() async {
     setState(() => _isLoading = true);
+    await _httpService.logout(); // revoca el refresh en el servidor y limpia lo local
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-    await _httpService.clearAuth();
 
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(

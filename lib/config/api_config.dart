@@ -67,6 +67,7 @@ class ApiConfig {
   static String get authRegisterUrl => '$baseUrl$authRegister';
   static String get authGoogleUrl => '$baseUrl$authGoogle';
   static String get authRefreshUrl => '$baseUrl$authRefresh';
+  static String get authLogoutUrl => '$baseUrl/api/auth/logout';
   static String get authForgotPasswordUrl => '$baseUrl$authForgotPassword';
   static String get authResetPasswordUrl => '$baseUrl$authResetPassword';
   static String get authChangePasswordUrl => '$baseUrl$authChangePassword';

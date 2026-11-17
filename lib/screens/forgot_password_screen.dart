@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../config/api_config.dart';
+import '../repositories/auth_repository.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
@@ -31,10 +31,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       });
 
       try {
-        await _httpService.post(
-          ApiConfig.authForgotPasswordUrl,
-          {'email': _emailController.text.trim()},
-        );
+        await AuthRepository(_httpService).forgotPassword(_emailController.text.trim());
 
         if (!mounted) return;
 
@@ -94,6 +91,7 @@ class ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
       body: WaterBackground(
         child: GestureDetector(
+          excludeFromSemantics: true,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: SingleChildScrollView(

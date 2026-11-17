@@ -1,0 +1,21 @@
+{
+  "@@locale": "es",
+  "loginWelcome": "Bienvenido",
+  "loginSubtitle": "Inicia sesión para continuar",
+  "emailLabel": "Correo electrónico",
+  "emailHint": "tu.email@ejemplo.com",
+  "emailRequired": "Por favor ingresa tu email",
+  "emailInvalid": "Ingresa un email válido",
+  "passwordLabel": "Contraseña",
+  "showPassword": "Mostrar contraseña",
+  "hidePassword": "Ocultar contraseña",
+  "passwordRequired": "Por favor ingresa tu contraseña",
+  "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+  "forgotPassword": "¿Olvidaste tu contraseña?",
+  "signIn": "Iniciar sesión",
+  "orSeparator": "o",
+  "continueWithGoogle": "Continuar con Google",
+  "noAccount": "¿No tienes cuenta? ",
+  "registerNow": "Regístrate ahora",
+  "googleTokenError": "No se pudo obtener el token de Google"
+}

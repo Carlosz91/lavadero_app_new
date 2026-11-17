@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../config/api_config.dart';
+import '../l10n/app_localizations.dart';
+import '../repositories/auth_repository.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
@@ -66,19 +68,14 @@ class LoginScreenState extends State<LoginScreen> {
       final String password = _passwordController.text;
 
       try {
-        final data = await _httpService.post(
-          ApiConfig.authLoginUrl,
-          {'email': email, 'password': password},
-        );
-
-        final refreshToken = data['refreshToken'] as String? ?? '';
+        final session = await AuthRepository(_httpService).login(email, password);
         await _persistSession(
           email,
-          token: data['token'] as String,
-          refreshToken: refreshToken,
-          userId: data['userId'] as String,
-          name: data['user']?['name'] as String?,
-          role: data['user']?['role'] as String?,
+          token: session.token,
+          refreshToken: session.refreshToken,
+          userId: session.userId,
+          name: session.name,
+          role: session.role,
         );
 
         if (!mounted) return;
@@ -114,25 +111,21 @@ class LoginScreenState extends State<LoginScreen> {
 
       final GoogleSignInAuthentication auth = await account.authentication;
       if (auth.idToken == null) {
-        setState(() => _errorMessage = 'No se pudo obtener el token de Google');
+        if (!mounted) return;
+        setState(() => _errorMessage = AppLocalizations.of(context).googleTokenError);
         return;
       }
 
       setState(() { _isLoading = true; _errorMessage = null; });
 
-      final data = await _httpService.post(
-        ApiConfig.authGoogleUrl,
-        {'idToken': auth.idToken},
-      );
-
-      final refreshToken = data['refreshToken'] as String? ?? '';
+      final session = await AuthRepository(_httpService).googleLogin(auth.idToken!);
       await _persistSession(
         account.email,
-        token: data['token'] as String,
-        refreshToken: refreshToken,
-        userId: data['userId'] as String,
-        name: data['user']?['name'] as String?,
-        role: data['user']?['role'] as String?,
+        token: session.token,
+        refreshToken: session.refreshToken,
+        userId: session.userId,
+        name: session.name,
+        role: session.role,
       );
 
       if (!mounted) return;
@@ -176,6 +169,7 @@ class LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: WaterBackground(
         child: GestureDetector(
+          excludeFromSemantics: true,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: SingleChildScrollView(
@@ -222,15 +216,16 @@ class LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         Text(
-          'Bienvenido',
+          l10n.loginWelcome,
           style: AppTextStyles.h1.copyWith(color: AppColors.primary),
         ),
         const SizedBox(height: 8),
         Text(
-          'Inicia sesión para continuar',
+          l10n.loginSubtitle,
           style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
         ),
       ],
@@ -238,40 +233,43 @@ class LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildEmailField() {
+    final l10n = AppLocalizations.of(context);
     return TextFormField(
       controller: _emailController,
-      decoration: const InputDecoration(
-        labelText: 'Correo electrónico',
-        hintText: 'tu.email@ejemplo.com',
-        prefixIcon: Icon(Icons.email_rounded),
+      decoration: InputDecoration(
+        labelText: l10n.emailLabel,
+        hintText: l10n.emailHint,
+        prefixIcon: const Icon(Icons.email_rounded),
       ),
       keyboardType: TextInputType.emailAddress,
       validator: (value) {
-        if (value == null || value.isEmpty) return 'Por favor ingresa tu email';
-        if (!isValidEmail(value)) return 'Ingresa un email válido';
+        if (value == null || value.isEmpty) return l10n.emailRequired;
+        if (!isValidEmail(value)) return l10n.emailInvalid;
         return null;
       },
     );
   }
 
   Widget _buildPasswordField() {
+    final l10n = AppLocalizations.of(context);
     return TextFormField(
       controller: _passwordController,
       obscureText: _obscurePassword,
       decoration: InputDecoration(
-        labelText: 'Contraseña',
+        labelText: l10n.passwordLabel,
         prefixIcon: const Icon(Icons.lock_rounded),
         suffixIcon: IconButton(
           icon: Icon(
             _obscurePassword ? Icons.visibility : Icons.visibility_off,
             color: AppColors.textHint,
           ),
+          tooltip: _obscurePassword ? l10n.showPassword : l10n.hidePassword,
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) return 'Por favor ingresa tu contraseña';
-        if (value.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
+        if (value == null || value.isEmpty) return l10n.passwordRequired;
+        if (value.length < 6) return l10n.passwordTooShort;
         return null;
       },
     );
@@ -281,10 +279,11 @@ class LoginScreenState extends State<LoginScreen> {
     return Align(
       alignment: Alignment.centerRight,
       child: TextButton(
+        style: TextButton.styleFrom(visualDensity: VisualDensity.standard, minimumSize: const Size(48, 48)),
         onPressed: _navigateToForgotPassword,
-        child: const Text(
-          '¿Olvidaste tu contraseña?',
-          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+        child: Text(
+          AppLocalizations.of(context).forgotPassword,
+          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -301,7 +300,7 @@ class LoginScreenState extends State<LoginScreen> {
                 width: 22, height: 22,
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
               )
-            : const Text('Iniciar sesión'),
+            : Text(AppLocalizations.of(context).signIn),
       ),
     );
   }
@@ -312,7 +311,7 @@ class LoginScreenState extends State<LoginScreen> {
         const Expanded(child: Divider()),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('o', style: AppTextStyles.body.copyWith(color: AppColors.textHint)),
+          child: Text(AppLocalizations.of(context).orSeparator, style: AppTextStyles.body.copyWith(color: AppColors.textHint)),
         ),
         const Expanded(child: Divider()),
       ],
@@ -342,7 +341,7 @@ class LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(width: 12),
             Text(
-              'Continuar con Google',
+              AppLocalizations.of(context).continueWithGoogle,
               style: AppTextStyles.body.copyWith(
                 color: Colors.black87,
                 fontWeight: FontWeight.w500,
@@ -355,16 +354,18 @@ class LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildRegisterLink() {
+    final l10n = AppLocalizations.of(context);
     return TextButton(
+      style: TextButton.styleFrom(visualDensity: VisualDensity.standard, minimumSize: const Size(48, 48)),
       onPressed: _navigateToRegister,
       child: RichText(
         text: TextSpan(
-          text: '¿No tienes cuenta? ',
+          text: l10n.noAccount,
           style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
-          children: const [
+          children: [
             TextSpan(
-              text: 'Regístrate ahora',
-              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+              text: l10n.registerNow,
+              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
             ),
           ],
         ),

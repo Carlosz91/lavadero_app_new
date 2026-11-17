@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../config/api_config.dart';
+import '../repositories/auth_repository.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
@@ -49,32 +49,19 @@ class RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final httpService = HttpService();
-      final response = await httpService.post(
-        ApiConfig.authRegisterUrl,
-        {
-          'email': _emailController.text.trim(),
-          'password': _passwordController.text,
-          'name': _nameController.text.trim(),
-        },
+      final email = _emailController.text.trim();
+      final session = await AuthRepository(httpService).register(
+        email: email,
+        password: _passwordController.text,
+        name: _nameController.text.trim(),
       );
 
-      final token = response['token'] as String?;
-      final refreshToken = response['refreshToken'] as String? ?? '';
-      final email = _emailController.text.trim();
-
-      if (token == null) {
-        _setError('No se recibió el token de sesión');
-        return;
-      }
-
       final prefs = await SharedPreferences.getInstance();
-      final userId = response['userId'] as String?;
-      await httpService.saveAuthData(token, refreshToken);
-      if (userId != null) await httpService.saveUserId(userId);
+      await httpService.saveAuthData(session.token, session.refreshToken);
+      await httpService.saveUserId(session.userId);
       await prefs.setString('userEmail', email);
       await prefs.setString('userName', _nameController.text.trim());
-      final role = response['user']?['role'] as String?;
-      await prefs.setString('role', role ?? 'user');
+      await prefs.setString('role', session.role ?? 'user');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -111,6 +98,7 @@ class RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       body: WaterBackground(
         child: GestureDetector(
+          excludeFromSemantics: true,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: SingleChildScrollView(
@@ -242,6 +230,7 @@ class RegisterScreenState extends State<RegisterScreen> {
             _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
             color: AppColors.textHint,
           ),
+          tooltip: _isPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña',
           onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
         ),
       ),
@@ -274,6 +263,7 @@ class RegisterScreenState extends State<RegisterScreen> {
             _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
             color: AppColors.textHint,
           ),
+          tooltip: 'Mostrar u ocultar la confirmación',
           onPressed: () =>
               setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
         ),

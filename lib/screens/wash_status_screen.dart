@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../config/api_config.dart';
+import '../repositories/car_repository.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
@@ -76,14 +77,9 @@ class _WashStatusViewState extends State<WashStatusView> {
     }
 
     try {
-      await _httpService.loadToken();
-      final url = ApiConfig.getCarsStatusUrl(widget.userId);
-      final data = await _httpService.get(url);
+      final cars = await CarRepository(_httpService).userCars(widget.userId);
 
       if (!mounted) return;
-
-      final List<Map<String, dynamic>> cars =
-          List<Map<String, dynamic>>.from(data['data'] ?? data['cars'] ?? []);
 
       _sortCars(cars);
 

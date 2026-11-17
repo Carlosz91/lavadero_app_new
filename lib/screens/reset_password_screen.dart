@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../config/api_config.dart';
+import '../repositories/auth_repository.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
@@ -55,12 +55,9 @@ class ResetPasswordScreenState extends State<ResetPasswordScreen> {
     });
 
     try {
-      final response = await _httpService.post(
-        ApiConfig.authResetPasswordUrl,
-        {
-          'resetToken': _codeController.text.trim(),
-          'newPassword': _passwordController.text,
-        },
+      final message = await AuthRepository(_httpService).resetPassword(
+        _codeController.text.trim(),
+        _passwordController.text,
       );
 
       if (!mounted) return;
@@ -71,7 +68,7 @@ class ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response['message']?.toString() ?? 'Contraseña restablecida'),
+          content: Text(message),
           backgroundColor: AppColors.success,
         ),
       );
@@ -118,6 +115,7 @@ class ResetPasswordScreenState extends State<ResetPasswordScreen> {
       ),
       body: WaterBackground(
         child: GestureDetector(
+          excludeFromSemantics: true,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(
             child: _success ? _buildSuccess() : _buildForm(),
@@ -229,6 +227,7 @@ class ResetPasswordScreenState extends State<ResetPasswordScreen> {
             _obscure ? Icons.visibility : Icons.visibility_off,
             color: AppColors.textHint,
           ),
+          tooltip: _obscure ? 'Mostrar contraseña' : 'Ocultar contraseña',
           onPressed: () => setState(() => _obscure = !_obscure),
         )
       ),
@@ -248,6 +247,7 @@ class ResetPasswordScreenState extends State<ResetPasswordScreen> {
             _obscureConfirm ? Icons.visibility : Icons.visibility_off,
             color: AppColors.textHint,
           ),
+          tooltip: _obscureConfirm ? 'Mostrar confirmación' : 'Ocultar confirmación',
           onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
         ),
       ),

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/lock_screen.dart';
@@ -60,6 +62,20 @@ class MyApp extends StatelessWidget {
                 theme: AppTheme.lightTheme,
                 darkTheme: AppTheme.darkTheme,
                 themeMode: themeMode,
+                // Español por defecto; inglés si el dispositivo lo usa.
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: AppLocalizations.supportedLocales,
+                localeResolutionCallback: (locale, supported) {
+                  for (final s in supported) {
+                    if (s.languageCode == locale?.languageCode) return s;
+                  }
+                  return const Locale('es'); // idioma no soportado: español
+                },
                 builder: (context, nav) =>
                     locked ? const LockScreen() : nav ?? const SizedBox.shrink(),
                 initialRoute: '/login',

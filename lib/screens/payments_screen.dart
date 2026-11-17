@@ -1,10 +1,10 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_widgets.dart';
-import '../config/api_config.dart';
+import '../repositories/api_client.dart';
+import '../repositories/payment_repository.dart';
 import '../services/http_service.dart';
 import '../utils/formatters.dart';
 import 'payment_service.dart';
@@ -118,24 +118,14 @@ class _PaymentsViewState extends State<PaymentsView>
   /// create-checkout-session y cachea la respuesta bajo la key: usar una key
   /// estable por pago haría que un error viejo (ej. Stripe caído) se reproduzca
   /// en cada reintento, así que cada tap genera la suya.
-  String _generateIdempotencyKey() {
-    final random = Random();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '$timestamp-${random.nextInt(999999)}-${random.nextInt(999999)}';
-  }
-
   Future<void> _payWithStripe(Map<String, dynamic> payment) async {
     setState(() => _processingPayment = true);
     try {
-      final httpService = HttpService();
-      await httpService.loadToken();
       // El monto nunca viaja por el cliente: el backend toma el pago guardado.
-      final response = await httpService.post(
-        ApiConfig.stripeCheckoutUrl,
-        {'paymentId': payment['id']},
-        idempotencyKey: _generateIdempotencyKey(),
+      final url = await PaymentRepository(HttpService()).startStripeCheckout(
+        payment['id'] as String,
+        idempotencyKey: newIdempotencyKey(),
       );
-      final url = response['url'] as String?;
       if (url != null) {
         final uri = Uri.parse(url);
         if (await canLaunchUrl(uri)) {

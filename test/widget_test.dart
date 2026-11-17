@@ -6,6 +6,12 @@ import 'package:lavadero_app/main.dart';
 import 'package:lavadero_app/services/theme_service.dart';
 import 'package:lavadero_app/theme/app_theme.dart';
 
+/// Los tests corren con locale en_US por defecto; la app es español-primero.
+void useLocale(WidgetTester tester, String code) {
+  tester.platformDispatcher.localesTestValue = [Locale(code)];
+  addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+}
+
 void main() {
   setUp(() {
     // Sincroniza la paleta con el brillo del tema (lo hace main() en producción).
@@ -16,6 +22,7 @@ void main() {
   });
 
   testWidgets('Login muestra validaciones básicas', (WidgetTester tester) async {
+    useLocale(tester, 'es');
     await tester.binding.setSurfaceSize(const Size(800, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -56,5 +63,54 @@ void main() {
 
     expect(find.textContaining('Ingresa un email'), findsOneWidget);
     expect(find.textContaining('al menos 6'), findsOneWidget);
+  });
+
+  testWidgets('Login cumple las guías de accesibilidad', (WidgetTester tester) async {
+    useLocale(tester, 'es');
+    final handle = tester.ensureSemantics();
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MyApp());
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('Login se muestra en inglés si el dispositivo está en inglés', (tester) async {
+    useLocale(tester, 'en');
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MyApp());
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    expect(find.text('Welcome'), findsOneWidget);
+    expect(find.text('Sign in to continue'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+
+    await tester.ensureVisible(find.byType(ElevatedButton));
+    await tester.tap(find.byType(ElevatedButton));
+    await tester.pump();
+    expect(find.text('Please enter your email'), findsOneWidget);
+  });
+
+  testWidgets('Un idioma no soportado cae en español', (tester) async {
+    useLocale(tester, 'fr');
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MyApp());
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(find.text('Bienvenido'), findsOneWidget);
   });
 }

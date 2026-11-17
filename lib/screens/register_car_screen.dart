@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'package:intl/intl.dart';
-import '../config/api_config.dart';
+import '../repositories/api_client.dart';
+import '../repositories/car_repository.dart';
 import '../services/http_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
@@ -9,7 +9,10 @@ import '../widgets/custom_widgets.dart';
 import '../widgets/water_animation.dart';
 
 class RegisterCarScreen extends StatefulWidget {
-  const RegisterCarScreen({super.key});
+  const RegisterCarScreen({super.key, this.api});
+
+  /// Cliente HTTP inyectable (por defecto el singleton real); permite probar con un falso.
+  final ApiClient? api;
 
   @override
   State<RegisterCarScreen> createState() => _RegisterCarScreenState();
@@ -59,17 +62,15 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
 
   Future<void> _loadPrices() async {
     try {
-      final httpService = HttpService();
-      final data = await httpService.get(ApiConfig.carsPricesUrl);
-      final prices = (data['prices'] as Map<String, dynamic>?) ?? {};
+      final prices = await CarRepository(widget.api ?? HttpService()).fetchPrices();
       if (mounted) {
         setState(() {
           for (var i = 0; i < _washServices.length; i++) {
             final price = prices[_washServices[i].name];
-            if (price is num) {
+            if (price != null) {
               _washServices[i] = WashService(
                 _washServices[i].name,
-                price.toDouble(),
+                price,
                 _washServices[i].icon,
                 _washServices[i].description,
                 _washServices[i].badge,
@@ -95,13 +96,10 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
 
   Future<void> _checkAvailability(DateTime date) async {
     try {
-      final httpService = HttpService();
-      await httpService.loadToken();
-      final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      final data = await httpService.get('${ApiConfig.carsAvailabilityUrl}?date=$dateStr');
-      if (mounted) setState(() => _availableSlots = data['available'] as int? ?? 5);
+      final slots = await CarRepository(widget.api ?? HttpService()).availableSlots(date);
+      if (mounted) setState(() => _availableSlots = slots);
     } catch (_) {
-      if (mounted) setState(() => _availableSlots = 5);
+      if (mounted) setState(() => _availableSlots = CarRepository.defaultSlots);
     }
   }
 
@@ -130,12 +128,6 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
     setState(() => _currentStep++);
   }
 
-  String _generateIdempotencyKey() {
-    final random = Random();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '$timestamp-${random.nextInt(999999)}-${random.nextInt(999999)}';
-  }
-
   Future<void> _registerCar() async {
     setState(() { _isLoading = true; _errorMessage = null; });
 
@@ -144,28 +136,24 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
         throw Exception('No hay cupos disponibles para esta fecha');
       }
 
-      _idempotencyKey ??= _generateIdempotencyKey();
+      _idempotencyKey ??= newIdempotencyKey();
 
       final httpService = HttpService();
       final userId = await httpService.getUserId();
       if (userId == null || userId.isEmpty) throw Exception('No se encontró el usuario. Inicia sesión nuevamente.');
 
-      await httpService.loadToken();
-
-      final pendingData = await httpService.get('${ApiConfig.paymentsUrl}?status=Pendiente');
-      final pendingList = (pendingData['data'] as List?) ?? [];
-      if (pendingList.isNotEmpty) throw Exception('Tenés un pago pendiente. Pagalo antes de registrar otro vehículo.');
-
-      await httpService.post(ApiConfig.carsRegisterUrl, {
-        'plate': _plateController.text.trim().toUpperCase(),
-        'model': _modelController.text.trim(),
-        'brand': _brandController.text.trim(),
-        'color': _selectedColor,
-        'washType': _selectedWashType,
-        'scheduledDate': '${_scheduledDate.year}-${_scheduledDate.month.toString().padLeft(2, '0')}-${_scheduledDate.day.toString().padLeft(2, '0')}',
-        'scheduledTime': '${_scheduledTime.hour.toString().padLeft(2, '0')}:${_scheduledTime.minute.toString().padLeft(2, '0')}',
-        'userId': userId,
-      }, idempotencyKey: _idempotencyKey);
+      await CarRepository(widget.api ?? httpService).registerCar(
+        plate: _plateController.text,
+        model: _modelController.text,
+        brand: _brandController.text,
+        color: _selectedColor,
+        washType: _selectedWashType,
+        scheduledDate: _scheduledDate,
+        scheduledHour: _scheduledTime.hour,
+        scheduledMinute: _scheduledTime.minute,
+        userId: userId,
+        idempotencyKey: _idempotencyKey!,
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vehículo registrado'), backgroundColor: AppColors.success));
@@ -186,6 +174,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
       appBar: const GradientAppBar(title: 'Registrar Vehículo'),
       body: WaterBackground(
         child: GestureDetector(
+          excludeFromSemantics: true,
           onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -298,7 +287,11 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
                 if (i < _colorOptions.length) {
                   final color = _colorOptions[i];
                   final name = _colorNames[i];
-                  return GestureDetector(
+                  return Semantics(
+                    button: true,
+                    selected: _selectedColor == name,
+                    label: 'Color $name',
+                    child: GestureDetector(
                     onTap: () => setState(() => _selectedColor = name),
                     child: Container(
                       width: 44, height: 44,
@@ -310,9 +303,13 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
                       ),
                       child: color == Colors.white ? Center(child: Icon(Icons.invert_colors, size: 18, color: Colors.grey.shade400)) : null,
                     ),
-                  );
+                  ));
                 }
-                return GestureDetector(
+                return Semantics(
+                  button: true,
+                  selected: _selectedColor == 'Otro',
+                  label: 'Otro color',
+                  child: GestureDetector(
                   onTap: () => setState(() => _selectedColor = 'Otro'),
                   child: Container(
                     width: 44, height: 44,
@@ -323,7 +320,7 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
                     ),
                     child: const Icon(Icons.colorize, size: 20, color: Colors.grey),
                   ),
-                );
+                ));
               }),
             ),
           ],
@@ -441,14 +438,17 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                GestureDetector(
+                Semantics(
+                  button: true,
+                  label: 'Elegir fecha',
+                  child: GestureDetector(
                   onTap: _selectDate,
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.calendar_today, color: AppColors.primary, size: 22),
                   ),
-                ),
+                )),
                 const SizedBox(width: 12),
                 Expanded(
                   child: GestureDetector(
@@ -463,14 +463,17 @@ class _RegisterCarScreenState extends State<RegisterCarScreen> {
                     ),
                   ),
                 ),
-                GestureDetector(
+                Semantics(
+                  button: true,
+                  label: 'Elegir hora',
+                  child: GestureDetector(
                   onTap: _selectTime,
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.access_time, color: AppColors.primary, size: 22),
                   ),
-                ),
+                )),
                 const SizedBox(width: 12),
                 GestureDetector(
                   onTap: _selectTime,

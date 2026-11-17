@@ -1,3 +1,4 @@
+import '../repositories/api_client.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -13,7 +14,7 @@ import '../utils/app_error.dart';
 ///   y se mantienen en memoria para construir los headers.
 /// - Ante un 401 se intenta renovar la sesión una sola vez con el refresh
 ///   token; si falla, se limpian credenciales y se navega al login.
-class HttpService {
+class HttpService implements ApiClient {
   static final HttpService _instance = HttpService._internal();
 
   factory HttpService() {
@@ -68,6 +69,7 @@ class HttpService {
   }
 
   /// ✅ GET request
+  @override
   Future<Map<String, dynamic>> get(String url) async {
     return _request((headers) => http
         .get(Uri.parse(url), headers: headers)
@@ -75,6 +77,7 @@ class HttpService {
   }
 
   /// ✅ POST request con soporte de idempotencia
+  @override
   Future<Map<String, dynamic>> post(
     String url,
     Map<String, dynamic> body, {
@@ -90,6 +93,7 @@ class HttpService {
   }
 
   /// ✅ PUT request
+  @override
   Future<Map<String, dynamic>> put(
     String url,
     Map<String, dynamic> body,
@@ -301,6 +305,30 @@ class HttpService {
       }
     }
     return userId;
+  }
+
+  /// Cierra la sesión también en el servidor (revoca el refresh token) y limpia
+  /// lo local. Es best-effort: si no hay red, igual se limpian las credenciales.
+  Future<void> logout() async {
+    try {
+      final refreshToken =
+          _refreshToken ?? await _storage.read(key: 'refreshToken');
+      if (_authToken != null && refreshToken != null) {
+        await http
+            .post(
+              Uri.parse(ApiConfig.authLogoutUrl),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $_authToken',
+              },
+              body: json.encode({'refreshToken': refreshToken}),
+            )
+            .timeout(const Duration(seconds: 5));
+      }
+    } catch (_) {
+      // Sin red o token vencido: el refresh expira solo; no bloqueamos el logout.
+    }
+    await clearAuth();
   }
 
   /// ✅ Limpiar credenciales (logout + manejo de 401 definitivo)
