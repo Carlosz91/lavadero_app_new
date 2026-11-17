@@ -1,16 +1,18 @@
-version: '3.8'
-
 services:
   mongodb:
     image: mongo:7
     container_name: carwash-mongo
     restart: unless-stopped
+    # Solo accesible desde el host local (no expuesto a la red).
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-carwash}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?Define MONGO_PASSWORD en .env (ver .env.example)}
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,15 +28,17 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      MONGO_URI: mongodb://mongodb:27017/car_wash
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-too-in-production}
+      MONGO_URI: mongodb://${MONGO_USER:-carwash}:${MONGO_PASSWORD}@mongodb:27017/car_wash?authSource=admin
+      # Sin valores por defecto: si faltan, compose se niega a arrancar.
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Define JWT_REFRESH_SECRET en .env}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      # Stripe: definidos en .env de la raíz; sin ellos el checkout fallará en runtime.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      # Stripe: sin ellos el checkout fallará en runtime.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      STRIPE_REDIRECT_HOST: ${STRIPE_REDIRECT_HOST:-http://localhost:3000}
+      STRIPE_REDIRECT_HOST: ${STRIPE_REDIRECT_HOST:-http://localhost:5000}
       # SMTP para reset de contraseña (opcional)
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -46,6 +50,37 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    # Contenedor endurecido: sin escritura en el FS salvo logs/tmp.
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - backend_logs:/app/logs
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # Respaldos periódicos de MongoDB (carpeta ./backups, con retención).
+  backup:
+    image: mongo:7
+    container_name: carwash-backup
+    restart: unless-stopped
+    entrypoint: ["/bin/bash", "/backup.sh"]
+    environment:
+      MONGO_URI: mongodb://${MONGO_USER:-carwash}:${MONGO_PASSWORD}@mongodb:27017/car_wash?authSource=admin
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./infra/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   frontend:
     build:
@@ -54,9 +89,15 @@ services:
     container_name: carwash-frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "3000:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
 volumes:
   mongo_data:
+  backend_logs:

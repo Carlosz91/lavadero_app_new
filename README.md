@@ -9,7 +9,7 @@ Aplicación móvil para la gestión de lavaderos de vehículos. Permite registra
 | Frontend | Flutter 3.35.2 / Dart 3.9.0 |
 | Backend | Node.js / Express |
 | Base de datos | MongoDB |
-| Autenticación | JWT (access 1h + refresh 7d) |
+| Autenticación | JWT (access 5 min + refresh 7d con rotación y revocación) |
 | Email | Nodemailer (SMTP opcional) |
 
 ## Funcionalidades
@@ -24,7 +24,7 @@ Aplicación móvil para la gestión de lavaderos de vehículos. Permite registra
 - **Bloqueo biométrico** — bloqueo de app con huella/rostro/PIN del dispositivo (`local_auth`), verificable al activar y al volver del segundo plano
 - **Panel admin** — `http://localhost:5000/admin/` (login JWT, auto-refresh, auto-logout al expirar, salida HTML escapada)
 - **Roles** — `admin`/`staff` pueden cambiar estados y marcar pagos; `user` solo registra, agenda, consulta y paga con Stripe
-- **Primer usuario** registrado se convierte en `admin` automáticamente
+- **Admin inicial** — en desarrollo el primer usuario es `admin`; en producción se crea con `npm run create-admin -- <email> <password>` (en `car_wash_backend`)
 - **Sistema de diseño** — tema personalizado claro/oscuro con colores, tipografía y componentes reutilizables
 - **Animaciones** — fondo con gotas animadas, logo flotante, fade-in escalonado en todas las pantallas
 - **API REST** documentada con Swagger en `http://localhost:5000/api/docs`
@@ -132,3 +132,39 @@ docs/                 # notas de diseño e implementación (MDs históricos)
 ## Licencia
 
 © 2024 Carlos Z. Todos los derechos reservados.
+
+## Despliegue con Docker
+
+```bash
+cp .env.example .env   # completa MONGO_PASSWORD, JWT_SECRET y JWT_REFRESH_SECRET
+docker compose up --build
+docker compose exec backend npm run create-admin -- admin@tudominio.com 'Clave@Segura1'
+```
+
+- Frontend en `http://localhost:3000` (nginx sin privilegios, puerto interno 8080); API en `:5000`.
+- MongoDB con usuario/contraseña, expuesto solo en `127.0.0.1`.
+- El backend corre con filesystem de solo lectura, sin capabilities, con `tini` y cierre ordenado (SIGTERM).
+- Respaldos: el servicio `backup` guarda un `mongodump` comprimido cada 24 h en `./backups` (retención 14 días). Restaurar: `docker compose exec -T mongodb mongorestore --username carwash --password "$MONGO_PASSWORD" --authenticationDatabase admin --gzip --archive < backups/carwash-AAAAMMDD-HHMMSS.archive.gz`
+- CI en `.github/workflows/ci.yml`: jest con umbral de cobertura, `npm audit`, `flutter analyze/test` y build Docker.
+
+## Desarrollo
+
+```bash
+cd car_wash_backend
+npm run lint        # ESLint
+npm test            # jest con cobertura mínima (70 % líneas)
+cd .. && flutter analyze && flutter test
+cd e2e && npx playwright test   # requiere backend en :5000 y admin@correo.com / Admin@123
+```
+
+Variables opcionales del backend (ver `car_wash_backend/.env.example`): `SENTRY_DSN` (monitoreo de errores),
+`RECONCILE_INTERVAL_MIN` (conciliación de pagos Stripe, 10 min por defecto), `DAILY_CAPACITY` y `BUSINESS_TZ` (cupo diario y zona horaria).
+En producción el servidor valida la configuración al arrancar (`config/env.js`) y se niega a iniciar con secretos débiles o faltantes.
+El panel admin corre con una CSP sin scripts en línea (`script-src 'self'`).
+
+## Arquitectura
+
+- **Backend** (`car_wash_backend`): controladores solo HTTP; la lógica vive en `services/` (`tokenService`, `carService`, `paymentService`, `capacityService`, `googleAuthService`, `passwordResetService`, `paymentReconciler`). Catálogos únicos en `config/constants.js`. Formato con Prettier (`npm run format`).
+- **App Flutter**: pantallas → repositorios (`lib/repositories/`: auth, autos, pagos) → `ApiClient` (interfaz implementada por `HttpService`). Los repositorios se prueban con un cliente falso (`test/helpers/fake_api.dart`).
+- **Idiomas**: español (por defecto) e inglés con `flutter gen-l10n` (`lib/l10n/*.arb`). El login está migrado; el resto de pantallas conserva sus textos en español y se migra pantalla a pantalla.
+- **Accesibilidad**: los tests de login y registro de auto verifican las guías de Flutter (tamaño mínimo de toque y etiquetas semánticas).
